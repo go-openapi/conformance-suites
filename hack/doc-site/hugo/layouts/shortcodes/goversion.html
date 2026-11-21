@@ -1,0 +1,7 @@
+{{- /*
+  goversion: renders a "minimum Go version" pill. Usage: {{% goversion "go1.25" %}}
+  The argument is the build constraint spelling (e.g. "go1.25").
+*/ -}}
+{{- $v := .Get 0 -}}
+<span class="go-version-badge" title="Requires {{ $v }} or newer">{{ $v }}</span>
+{{- /* trailing trim keeps the badge inline in headings and table cells */ -}}
