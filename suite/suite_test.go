@@ -5,6 +5,7 @@ package suite_test
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/go-openapi/conformance-suites/suite"
@@ -84,6 +85,67 @@ func TestAnArtifactSurvivesTheRoundTrip(t *testing.T) {
 		case got[i].Origin != want[i].Origin:
 			t.Errorf("%s lost its origin: %+v", want[i].Name, got[i].Origin)
 		}
+	}
+}
+
+// TestAMeaningIsStoredAsJSON checks that a meaning lands in the file as a JSON
+// value a jq filter can read directly, and that a null value stays distinct
+// from an absent one.
+func TestAMeaningIsStoredAsJSON(t *testing.T) {
+	h, _ := sample()
+	h.Cases = 3
+
+	cases := []suite.Case{
+		{Name: "object", Src: []byte("a: 1"), WellFormed: true, Meaning: &suite.Meaning{Under: "yaml-1.2-core", JSON: []byte(`{"a":1}`)}},
+		{Name: "null", Src: []byte("~"), WellFormed: true, Meaning: &suite.Meaning{Under: "yaml-1.2-core", JSON: []byte(`null`)}},
+		{Name: "cycle", Src: []byte("&a [*a]"), WellFormed: true, Meaning: &suite.Meaning{Under: "yaml-1.2-core", Cyclic: true}},
+	}
+
+	var buf bytes.Buffer
+
+	w, err := suite.NewWriter(&buf, h)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, c := range cases {
+		if err := w.Add(c); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	plain, err := suite.Content(buf.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, want := range []string{
+		`"meaning":{"under":"yaml-1.2-core","json":{"a":1}}`,
+		`"meaning":{"under":"yaml-1.2-core","json":null}`,
+		`"meaning":{"under":"yaml-1.2-core","cyclic":true}`,
+	} {
+		if !strings.Contains(string(plain), want) {
+			t.Errorf("the file does not hold %s:\n%s", want, plain)
+		}
+	}
+
+	_, got, err := suite.FromBytes(buf.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i, c := range got {
+		if !bytes.Equal(c.Meaning.JSON, cases[i].Meaning.JSON) {
+			t.Errorf("%s reads back as %q, was %q", c.Name, c.Meaning.JSON, cases[i].Meaning.JSON)
+		}
+	}
+
+	if got[2].Meaning.JSON != nil {
+		t.Errorf("an absent value reads back as %q", got[2].Meaning.JSON)
 	}
 }
 

@@ -51,7 +51,10 @@
 // still what the oracle would say.
 package suite
 
-import "slices"
+import (
+	"encoding/json"
+	"slices"
+)
 
 // Format is the artifact layout version.
 //
@@ -60,12 +63,13 @@ import "slices"
 // expected to ignore.
 //
 // Case.Features, Header.Features, Case.Meanings and Header.Readings all arrived
-// under that rule
-// and did not move it. A format-3 reader skips the first two and derives the
-// same expectation it always did, because nothing consulting them decides an
-// outcome; it skips the third and keeps reading Case.Meaning, which still
-// carries the core reading.
-const Format = 3
+// under that rule and did not move it: a reader that skips them derives the
+// same expectations, because nothing consulting them decides an outcome.
+//
+// Format 4 stores [Meaning.JSON] as a JSON value. Format 3 stored it as a
+// base64 string, which a format-3 reader would fail to decode from a format-4
+// file.
+const Format = 4
 
 // Header describes an artifact and is the first line of one.
 type Header struct {
@@ -209,9 +213,9 @@ type Case struct {
 	// consumer of the other as broken. Where every reading agrees, Meaning
 	// alone says it and this stays empty.
 	//
-	// The core answer is repeated here rather than left to Meaning, so a
-	// consumer matching on stance.Table.Reads looks in one place. Meaning stays
-	// for the format-3 readers that know nothing about this field.
+	// The core answer is repeated here, so a consumer matching on
+	// stance.Table.Reads looks in one place. A consumer that only wants the
+	// default reading reads Meaning and can ignore this field.
 	Meanings []Meaning `json:"meanings,omitempty"`
 	// Origin traces the case back to what produced it.
 	Origin Origin `json:"origin"`
@@ -227,9 +231,16 @@ type Meaning struct {
 	// Under names the reading: "yaml-1.2-core", "rfc8259". It is the
 	// specification's own default, not ours.
 	Under string `json:"under"`
-	// JSON is the value, rendered as JSON. Absent when Cyclic is set, because
-	// then there is no rendering.
-	JSON []byte `json:"json,omitempty"`
+	// JSON is the value, rendered as JSON and stored in the file as a JSON
+	// value. Absent when Cyclic is set, because then there is no rendering.
+	//
+	// Compare meanings as JSON values: the writer compacts the whitespace, and a
+	// reader decoding numbers into float64 rounds the ones it cannot hold.
+	//
+	// The test document itself stays base64 in [Case.Src], because it is full
+	// of bytes that are not text. A rendered value is valid UTF-8 JSON by
+	// construction, so it needs no such encoding.
+	JSON json.RawMessage `json:"json,omitempty"`
 	// Cyclic says the meaning is a graph with a cycle and therefore has no JSON
 	// form at all.
 	//
