@@ -1,0 +1,96 @@
+version: "2"
+linters:
+  default: all
+  disable:
+    - depguard
+    - funlen
+    - gochecknoglobals
+    - gochecknoinits
+    - goconst
+    - godox
+    - gomoddirectives
+    - gomodguard
+    - gomodguard_v2
+    - err113
+    - exhaustruct
+    - exhaustruct_v5
+    - ireturn
+    # The generators' numbers are data -- random-draw bounds, Unicode block ranges, the grammar's
+    # context ids, corpus tiers -- and not tunables a name would explain.
+    - mnd
+    - nlreturn
+    - nonamedreturns
+    - noinlineerr
+    - nilnil
+    - paralleltest
+    - recvcheck
+    - testpackage
+    - thelper
+    - tagliatelle
+    - tparallel
+    - varnamelen
+    - whitespace
+    - wrapcheck
+    - wsl
+    - wsl_v5
+  settings:
+    dupl:
+      threshold: 200
+    goconst:
+      min-len: 2
+      min-occurrences: 3
+    cyclop:
+      max-complexity: 35
+    gocyclo:
+      min-complexity: 35
+    gocognit:
+      min-complexity: 35
+    exhaustive:
+      default-signifies-exhaustive: true
+      default-case-required: true
+    lll:
+      line-length: 180
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      # The recognizer packs indents, offsets and coverage buckets into int32 memo entries: an input
+      # over 2 GiB would overflow them. The generators narrow bounded draws (digits, ASCII runes) to bytes.
+      - linters:
+        - gosec
+        text: "G115:"
+      # YAML fixtures repeat words on purpose ("hello:\n  hello:", "[x, x, x]").
+      - path: _test\.go
+        linters:
+          - dupword
+          # Test fixtures are small, and a nil slice is often what an assertion expects.
+          - prealloc
+          - forcetypeassert
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+    - gofumpt
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+issues:
+  # Maximum issues count per one linter.
+  # Set to 0 to disable.
+  # Default: 50
+  max-issues-per-linter: 0
+  # Maximum count of issues with the same text.
+  # Set to 0 to disable.
+  # Default: 3
+  max-same-issues: 0
