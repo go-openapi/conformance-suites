@@ -1,14 +1,14 @@
 // SPDX-FileCopyrightText: Copyright 2025 go-swagger maintainers
 // SPDX-License-Identifier: Apache-2.0
 
-package grammar_test
+package yamlcorpus_test
 
 import (
 	"fmt"
 	"testing"
 
-	"github.com/go-openapi/conformance-suites/grammar"
 	yamltestsuite "github.com/go-openapi/conformance-suites/internal/yamltestsuite"
+	yamlcorpus "github.com/go-openapi/conformance-suites/yaml"
 )
 
 // TestIndentationIsVisibleToTheSignature is the whole reason n and m are in the
@@ -96,8 +96,8 @@ func TestBinningIsMeasuredOnTheSuite(t *testing.T) {
 		t.Fatalf("cannot read the suite: %v", err)
 	}
 
-	cover := grammar.YAML.NewCoverage()
-	rec := grammar.NewRecognizer(4096)
+	cover := yamlcorpus.YAML.NewCoverage()
+	rec := yamlcorpus.NewRecognizer(4096)
 	rec.Cover(cover)
 
 	seen := map[string]int{}
@@ -120,8 +120,8 @@ func TestBinningIsMeasuredOnTheSuite(t *testing.T) {
 func signature(t *testing.T, src string) string {
 	t.Helper()
 
-	cover := grammar.YAML.NewCoverage()
-	rec := grammar.NewRecognizer(1024)
+	cover := yamlcorpus.YAML.NewCoverage()
+	rec := yamlcorpus.NewRecognizer(1024)
 	rec.Cover(cover)
 
 	if got := rec.Stream([]byte(src)); !got.OK {

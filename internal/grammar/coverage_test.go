@@ -4,8 +4,26 @@
 package grammar
 
 import (
+	"os"
+	"sync"
 	"testing"
 )
+
+// yamlFixture is the YAML 1.2 grammar compiled without its patches, as a
+// fixture for the tests that need the engine's unexported state.
+//
+// The YAML grammar itself lives in package yamlcorpus, which imports this one,
+// so these tests read the spec file directly. They compare one grammar with
+// itself (memoized against not, reused against fresh), and the patches change
+// neither side of that comparison.
+var yamlFixture = sync.OnceValue(func() *Grammar {
+	spec, err := os.ReadFile("../../yaml/testdata/yaml-spec-1.2.json")
+	if err != nil {
+		panic(err)
+	}
+
+	return MustCompile("YAML 1.2, unpatched", spec)
+})
 
 // coveredBy runs one document and returns what it reached, with the memo table
 // either on or off.
@@ -58,8 +76,8 @@ func TestMemoizationDoesNotHideCoverage(t *testing.T) {
 
 	for _, doc := range docs {
 		t.Run(doc.name, func(t *testing.T) {
-			with := coveredBy(t, YAML, "l-yaml-stream", doc.src, -1, "block-in", true)
-			without := coveredBy(t, YAML, "l-yaml-stream", doc.src, -1, "block-in", false)
+			with := coveredBy(t, yamlFixture(), "l-yaml-stream", doc.src, -1, "block-in", true)
+			without := coveredBy(t, yamlFixture(), "l-yaml-stream", doc.src, -1, "block-in", false)
 
 			// Neither may reach anywhere the other does not. Stated in both
 			// directions on purpose: a memo hit suppressing an entry and a memo
@@ -89,13 +107,13 @@ func TestMemoizationDoesNotHideCoverage(t *testing.T) {
 // not a map write. This is the test that says the default really is nil, since
 // a recognizer that quietly allocated a vector would pass everything else.
 func TestCoverageIsOffByDefault(t *testing.T) {
-	r := YAML.Recognizer(64)
+	r := yamlFixture().Recognizer(64)
 
 	if r.st.cover != nil {
 		t.Fatal("a new recognizer is already collecting coverage")
 	}
 
-	r.Stream([]byte("a: 1\n"))
+	r.Match("l-yaml-stream", []byte("a: 1\n"), -1, "block-in")
 
 	if r.st.cover != nil {
 		t.Error("recognizing switched coverage on")
@@ -106,14 +124,14 @@ func TestCoverageIsOffByDefault(t *testing.T) {
 // documents, since reset() is what the reusable recognizer calls between them
 // and it is easy for a new field to be cleared there by accident.
 func TestCoverageSurvivesReuse(t *testing.T) {
-	r := YAML.Recognizer(64)
-	cov := YAML.NewCoverage()
+	r := yamlFixture().Recognizer(64)
+	cov := yamlFixture().NewCoverage()
 	r.Cover(cov)
 
-	r.Stream([]byte("a: 1\n"))
+	r.Match("l-yaml-stream", []byte("a: 1\n"), -1, "block-in")
 	first := cov.Reached()
 
-	r.Stream([]byte("[a, {b: c}]\n"))
+	r.Match("l-yaml-stream", []byte("[a, {b: c}]\n"), -1, "block-in")
 	second := cov.Reached()
 
 	switch {
@@ -136,8 +154,8 @@ func TestCoverageSurvivesReuse(t *testing.T) {
 // no reason connected to what they cover. A second copy of a document must
 // therefore add nothing.
 func TestAddsToIsAboutReachAndNotCount(t *testing.T) {
-	one := coveredBy(t, YAML, "l-yaml-stream", "a: 1\n", -1, "block-in", true)
-	twice := coveredBy(t, YAML, "l-yaml-stream", "a: 1\nb: 2\nc: 3\n", -1, "block-in", true)
+	one := coveredBy(t, yamlFixture(), "l-yaml-stream", "a: 1\n", -1, "block-in", true)
+	twice := coveredBy(t, yamlFixture(), "l-yaml-stream", "a: 1\nb: 2\nc: 3\n", -1, "block-in", true)
 
 	if twice.AddsTo(one) {
 		t.Error("more of the same shape claimed to reach somewhere new")

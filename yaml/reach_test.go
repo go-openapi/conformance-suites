@@ -1,15 +1,15 @@
 // SPDX-FileCopyrightText: Copyright 2025 go-swagger maintainers
 // SPDX-License-Identifier: Apache-2.0
 
-package grammar_test
+package yamlcorpus_test
 
 import (
 	"slices"
 	"strings"
 	"testing"
 
-	"github.com/go-openapi/conformance-suites/grammar"
 	yamltestsuite "github.com/go-openapi/conformance-suites/internal/yamltestsuite"
+	yamlcorpus "github.com/go-openapi/conformance-suites/yaml"
 )
 
 // TestNothingReachesAnUnreachableBucket falsifies the denominator.
@@ -30,9 +30,9 @@ func TestNothingReachesAnUnreachableBucket(t *testing.T) {
 		t.Fatalf("cannot read the suite: %v", err)
 	}
 
-	reach := grammar.YAML.Reach("l-yaml-stream", "block-in")
-	cover := grammar.YAML.NewCoverage()
-	rec := grammar.NewRecognizer(4096)
+	reach := yamlcorpus.YAML.Reach("l-yaml-stream", "block-in")
+	cover := yamlcorpus.YAML.NewCoverage()
+	rec := yamlcorpus.NewRecognizer(4096)
 	rec.Cover(cover)
 
 	for _, c := range cases {
@@ -56,8 +56,8 @@ func TestNothingReachesAnUnreachableBucket(t *testing.T) {
 // percentage against the vector's size is a percentage against a number nothing
 // can ever reach.
 func TestTheDenominatorIsSmallerThanTheVector(t *testing.T) {
-	reach := grammar.YAML.Reach("l-yaml-stream", "block-in")
-	slots := grammar.YAML.NewCoverage().Buckets()
+	reach := yamlcorpus.YAML.Reach("l-yaml-stream", "block-in")
+	slots := yamlcorpus.YAML.NewCoverage().Buckets()
 
 	if reach.Buckets() >= slots {
 		t.Errorf("the analysis found %d buckets in a vector of %d, which cannot be right",
@@ -69,14 +69,14 @@ func TestTheDenominatorIsSmallerThanTheVector(t *testing.T) {
 }
 
 // TestAStartSymbolChangesTheDenominator checks the set is a property of the
-// question and not of the grammar.
+// question and not of the yamlcorpus.
 //
 // A flow node is a much smaller grammar than a stream, and a corpus of flow
 // nodes measured against a stream's denominator would look permanently half
 // finished for reasons that have nothing to do with the corpus.
 func TestAStartSymbolChangesTheDenominator(t *testing.T) {
-	stream := grammar.YAML.Reach("l-yaml-stream", "block-in")
-	node := grammar.YAML.Reach("ns-flow-node", "flow-out")
+	stream := yamlcorpus.YAML.Reach("l-yaml-stream", "block-in")
+	node := yamlcorpus.YAML.Reach("ns-flow-node", "flow-out")
 
 	if node.Buckets() >= stream.Buckets() {
 		t.Errorf("a flow node reaches %d buckets and a stream %d", node.Buckets(), stream.Buckets())
@@ -95,14 +95,14 @@ func TestAStartSymbolChangesTheDenominator(t *testing.T) {
 // the other one: a production that is referred to and still cannot be entered
 // is something only this analysis can find.
 func TestTheUnreachableProductionsAreTheOnesNothingRefers(t *testing.T) {
-	reach := grammar.YAML.Reach("l-yaml-stream", "block-in")
+	reach := yamlcorpus.YAML.Reach("l-yaml-stream", "block-in")
 
 	unreachable := map[string]bool{}
 	for _, name := range reach.Unreachable() {
 		unreachable[name] = true
 	}
 
-	for _, name := range grammar.YAML.Unreferenced() {
+	for _, name := range yamlcorpus.YAML.Unreferenced() {
 		if name == "l-yaml-stream" {
 			// The start symbol is unreferenced by construction: nothing in a
 			// grammar refers to its root.
@@ -117,7 +117,7 @@ func TestTheUnreachableProductionsAreTheOnesNothingRefers(t *testing.T) {
 	var referred []string
 
 	for name := range unreachable {
-		if !slices.Contains(grammar.YAML.Unreferenced(), name) {
+		if !slices.Contains(yamlcorpus.YAML.Unreferenced(), name) {
 			referred = append(referred, name)
 		}
 	}
@@ -175,9 +175,9 @@ func TestTheWorkListIsReachable(t *testing.T) {
 		t.Fatalf("cannot read the suite: %v", err)
 	}
 
-	reach := grammar.YAML.Reach("l-yaml-stream", "block-in")
-	cover := grammar.YAML.NewCoverage()
-	rec := grammar.NewRecognizer(4096)
+	reach := yamlcorpus.YAML.Reach("l-yaml-stream", "block-in")
+	cover := yamlcorpus.YAML.NewCoverage()
+	rec := yamlcorpus.NewRecognizer(4096)
 	rec.Cover(cover)
 
 	for _, c := range cases {

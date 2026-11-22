@@ -4,7 +4,7 @@
 package jsoncorpus
 
 import (
-	"github.com/go-openapi/conformance-suites/grammar"
+	"github.com/go-openapi/conformance-suites/internal/grammar"
 
 	_ "embed"
 )
@@ -24,7 +24,7 @@ var JSON = grammar.MustCompile("RFC 8259", spec)
 //
 // RFC 8259 puts optional whitespace on either side of the top-level value and
 // admits any value there, not only an object or an array.
-func Text(src []byte) grammar.Result {
+func Text(src []byte) Result {
 	return JSON.Match("JSON-text", src, 0, "")
 }
 
@@ -40,13 +40,13 @@ func NewRecognizer(hint int) *Recognizer {
 }
 
 // Text reports whether src is exactly one JSON text.
-func (r *Recognizer) Text(src []byte) grammar.Result {
+func (r *Recognizer) Text(src []byte) Result {
 	return r.r.Match("JSON-text", src, 0, "")
 }
 
 // Cover makes this recognizer record which productions it enters. Passing nil
 // stops it.
-func (r *Recognizer) Cover(c *grammar.Coverage) { r.r.Cover(c) }
+func (r *Recognizer) Cover(c *Coverage) { r.r.Cover(c) }
 
 // NewCoverage returns an empty coverage vector over the JSON grammar.
-func NewCoverage() *grammar.Coverage { return JSON.NewCoverage() }
+func NewCoverage() *Coverage { return JSON.NewCoverage() }

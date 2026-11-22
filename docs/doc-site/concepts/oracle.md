@@ -22,7 +22,7 @@ This page is an outline. The structure is up for review; the prose is not writte
 - Why not a parser: the corpus would score every parser against one parser's bugs
 - Sources: `yaml-spec-1.2.json` from `yaml/yaml-grammar` ({{% siteparam "metrics.yaml_rules" %}} productions),
   `rfc8259.json` transcribed from RFC 8259 ({{% siteparam "metrics.json_rules" %}} rules)
-- What `grammar.Result` holds; no tree, no error messages
+- What `Result` holds; no tree, no error messages
 - Patches: the YAML rules the spec states only in prose
 - Cost in one paragraph: compiled to closures, memoized
-- Summary of `grammar/doc.go`, with links to pkg.go.dev for out-parameters, measured indentation and memoization
+- Summary of `internal/grammar/doc.go`, with links to pkg.go.dev for out-parameters, measured indentation and memoization

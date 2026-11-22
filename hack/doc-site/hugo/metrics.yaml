@@ -5,7 +5,7 @@
 #
 # Measured 2026-11-22 against master, with a throwaway test in ./json calling
 # jsoncorpus.SmokeSuite, jsoncorpus.Full().Write, jsoncorpus.Vocabulary,
-# jsoncorpus.MutationNames, jsoncorpus.JSON.Rules and grammar.YAML.Rules.
+# jsoncorpus.MutationNames, jsoncorpus.JSON.Rules and yamlcorpus.YAML.Rules.
 params:
     metrics:
         # Grammars: productions compiled.

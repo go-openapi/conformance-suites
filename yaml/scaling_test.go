@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2025 go-swagger maintainers
 // SPDX-License-Identifier: Apache-2.0
 
-package grammar_test
+package yamlcorpus_test
 
 import (
 	"os"
@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-openapi/conformance-suites/grammar"
+	yamlcorpus "github.com/go-openapi/conformance-suites/yaml"
 )
 
 // shapes stress different parts of the engine: a flat sequence grows the input
@@ -72,9 +72,9 @@ func label(memo bool) string {
 func measureShape(t *testing.T, build func(int) string, memo bool) {
 	t.Helper()
 
-	match := grammar.MatchNoMemo
+	match := yamlcorpus.MatchNoMemo
 	if memo {
-		match = grammar.Match
+		match = yamlcorpus.Match
 	}
 
 	var prev time.Duration
@@ -97,7 +97,7 @@ func measureShape(t *testing.T, build func(int) string, memo bool) {
 
 		const runs = 5
 		start := time.Now()
-		var res grammar.Result
+		var res yamlcorpus.Result
 		for range runs {
 			res = match("ns-flow-node", src, 0, "flow-out")
 		}

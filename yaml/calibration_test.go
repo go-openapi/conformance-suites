@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2025 go-swagger maintainers
 // SPDX-License-Identifier: Apache-2.0
 
-package grammar_test
+package yamlcorpus_test
 
 import (
 	"sort"
@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-openapi/conformance-suites/grammar"
 	yamltestsuite "github.com/go-openapi/conformance-suites/internal/yamltestsuite"
+	yamlcorpus "github.com/go-openapi/conformance-suites/yaml"
 )
 
 // declared is a case of the YAML Test Suite where the recognizer knowingly
@@ -52,7 +52,7 @@ func TestRecognizerAgreesWithTheYAMLTestSuite(t *testing.T) {
 		t.Fatalf("cannot read the suite: %v", err)
 	}
 
-	rec := grammar.NewRecognizer(4096)
+	rec := yamlcorpus.NewRecognizer(4096)
 
 	var (
 		accept, reject, silent int

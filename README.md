@@ -57,7 +57,7 @@ implementation-defined property the document has. You declare your parser's posi
 
 ## Features
 
-- **Oracles.** `grammar.Stream` checks a YAML 1.2 stream, `jsoncorpus.Text` checks a JSON text. Both
+- **Oracles.** `yamlcorpus.Stream` checks a YAML 1.2 stream, `jsoncorpus.Text` checks a JSON text. Both
   are compiled at init from machine-readable grammars: the 211 productions published by
   [`yaml/yaml-grammar`][yaml-grammar], and RFC 8259 transcribed into the same format. RFC 8259 compiles
   with no patches. YAML 1.2 needs a few patches, for rules the spec states only in prose.
@@ -82,8 +82,8 @@ go get github.com/go-openapi/conformance-suites
 Ask the oracles directly:
 
 ```go
-ok := grammar.Stream([]byte("a: [1, 2]\n")).OK   // YAML 1.2
-ok = jsoncorpus.Text([]byte(`{"a":1}`)).OK       // RFC 8259
+ok := yamlcorpus.Stream([]byte("a: [1, 2]\n")).OK // YAML 1.2
+ok = jsoncorpus.Text([]byte(`{"a":1}`)).OK         // RFC 8259
 ```
 
 Score a JSON parser against the embedded corpus:
@@ -144,8 +144,8 @@ behind the verdicts, so a corpus built from an older grammar is easy to detect.
 
 | package | contents |
 |---|---|
-| [`grammar`](./grammar) | the grammar compiler, the YAML 1.2 oracle and its coverage |
 | [`json`](./json) (`jsoncorpus`) | the JSON oracle, generator and corpus, and the JSON tags |
+| [`yaml`](./yaml) (`yamlcorpus`) | the YAML 1.2 oracle and its coverage; the YAML corpus is moving in from go-yaml |
 | [`suite`](./suite) | the corpus file format: `Reader`, `Writer`, `Header`, `Case` |
 | [`stance`](./stance) | tags, positions and expected outcomes: `Tag`, `Stand`, `Table`, `Outcome` |
 

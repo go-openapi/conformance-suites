@@ -1,12 +1,14 @@
 // SPDX-FileCopyrightText: Copyright 2025 go-swagger maintainers
 // SPDX-License-Identifier: Apache-2.0
 
-// Package grammar is a YAML 1.2 recognizer compiled from the spec grammar.
+// Package grammar compiles a published grammar into a recognizer, used as the oracle of a conformance suite.
 //
-// It answers one question -- is this byte sequence a valid YAML 1.2 document --
-// and nothing else. No AST, no events, no error messages. That is the whole
-// point: an oracle only has to be right, so it can skip everything a parser
-// spends its time on.
+// A recognizer answers one question: does this byte sequence match the grammar.
+// It builds no AST, emits no events and returns no error messages.
+// An oracle only has to be right, so it skips everything a parser spends its time on.
+//
+// Package yamlcorpus compiles YAML 1.2 with this package, and package jsoncorpus compiles RFC 8259.
+// Both re-export the types they return, so no caller outside this module imports grammar.
 //
 // # Why a recognizer
 //
@@ -26,10 +28,10 @@
 // spec as a data structure. The spec's grammar is a parameterized PEG: rules
 // take up to four arguments (n indentation, m extra indentation, c context,
 // t chomping), and the DSL adds ordered choice, both lookaheads, lookbehind and
-// character-set subtraction.
+// character-set subtraction. Package jsoncorpus transcribes RFC 8259 into the same DSL.
 //
-// This package walks that data structure once at init and compiles it into a
-// tree of Go closures, then runs the closures. Compiling to closures rather
+// [Compile] walks that data structure once and compiles it into a tree of Go closures,
+// and [Grammar.Match] runs them. Compiling to closures rather
 // than interpreting the data structure directly is the difference between an
 // oracle we can run a hundred thousand times and one we cannot: chasing map
 // lookups through the decoded JSON on every step costs two orders of magnitude

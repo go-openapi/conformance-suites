@@ -17,7 +17,7 @@ This page is an outline. The structure is up for review; the prose is not writte
 
 ## Sections
 
-- Today: `grammar.YAML`, `grammar.Stream`, calibration against the vendored YAML Test Suite
+- Today: `yamlcorpus.YAML`, `yamlcorpus.Stream`, calibration against the vendored YAML Test Suite
 - Moving in: `yamlcorpus`, `yamlgen`, and the `yaml/corpus` module holding the embedded corpus
 - The vocabulary: 54 YAML tags in `anchor/*`, `tag/*`, `merge/*`, `key/*`, `directive/*`, `schema/*`, `separation/tab`
 - Readings: `yaml-1.2-core`, `yaml-1.1`

@@ -1,13 +1,13 @@
 // SPDX-FileCopyrightText: Copyright 2025 go-swagger maintainers
 // SPDX-License-Identifier: Apache-2.0
 
-package grammar_test
+package yamlcorpus_test
 
 import (
 	"testing"
 	"time"
 
-	"github.com/go-openapi/conformance-suites/grammar"
+	yamlcorpus "github.com/go-openapi/conformance-suites/yaml"
 	"github.com/go-openapi/testify/v2/assert"
 	"github.com/go-openapi/testify/v2/require"
 )
@@ -15,7 +15,7 @@ import (
 // TestCompiles asserts the whole grammar file turned into closures, rather than
 // some prefix of it that happened not to hit an unimplemented form.
 func TestCompiles(t *testing.T) {
-	assert.Equal(t, 211, grammar.Rules())
+	assert.Equal(t, 211, yamlcorpus.Rules())
 }
 
 // flowCases are documents that are exactly one flow node, and documents that
@@ -69,7 +69,7 @@ var flowCases = []struct {
 func TestFlowNode(t *testing.T) {
 	for _, tc := range flowCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := grammar.FlowNode([]byte(tc.src))
+			got := yamlcorpus.FlowNode([]byte(tc.src))
 			assert.Equalf(t, tc.valid, got.OK, "%q: %s", tc.src, got)
 		})
 	}
@@ -249,7 +249,7 @@ var bom = string(rune(0xFEFF))
 func TestStream(t *testing.T) {
 	for _, tc := range streamCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := grammar.Stream([]byte(tc.src))
+			got := yamlcorpus.Stream([]byte(tc.src))
 			assert.Equalf(t, tc.valid, got.OK, "%q: %s", tc.src, got)
 		})
 	}
@@ -261,8 +261,8 @@ func TestStream(t *testing.T) {
 func TestMemoAgrees(t *testing.T) {
 	for _, tc := range flowCases {
 		t.Run(tc.name, func(t *testing.T) {
-			memo := grammar.Match("ns-flow-node", []byte(tc.src), 0, "flow-out")
-			plain := grammar.MatchNoMemo("ns-flow-node", []byte(tc.src), 0, "flow-out")
+			memo := yamlcorpus.Match("ns-flow-node", []byte(tc.src), 0, "flow-out")
+			plain := yamlcorpus.MatchNoMemo("ns-flow-node", []byte(tc.src), 0, "flow-out")
 			require.Equalf(t, memo.OK, plain.OK, "%q: memo=%s plain=%s", tc.src, memo, plain)
 		})
 	}
@@ -272,8 +272,8 @@ func TestMemoAgrees(t *testing.T) {
 	// bare document is asked with less input than the same rule outside one.
 	for _, tc := range streamCases {
 		t.Run(tc.name, func(t *testing.T) {
-			memo := grammar.Match("l-yaml-stream", []byte(tc.src), -1, "block-in")
-			plain := grammar.MatchNoMemo("l-yaml-stream", []byte(tc.src), -1, "block-in")
+			memo := yamlcorpus.Match("l-yaml-stream", []byte(tc.src), -1, "block-in")
+			plain := yamlcorpus.MatchNoMemo("l-yaml-stream", []byte(tc.src), -1, "block-in")
 			require.Equalf(t, memo.OK, plain.OK, "%q: memo=%s plain=%s", tc.src, memo, plain)
 		})
 	}
@@ -300,7 +300,7 @@ func TestThroughput(t *testing.T) {
 
 	const runs = 2000
 
-	measure := func(match func(string) grammar.Result) (time.Duration, int64, int64) {
+	measure := func(match func(string) yamlcorpus.Result) (time.Duration, int64, int64) {
 		start := time.Now()
 		var steps, hits int64
 		for range runs {
@@ -314,12 +314,12 @@ func TestThroughput(t *testing.T) {
 		return time.Since(start), steps, hits
 	}
 
-	fresh, steps, hits := measure(func(s string) grammar.Result {
-		return grammar.Match("ns-flow-node", []byte(s), 0, "flow-out")
+	fresh, steps, hits := measure(func(s string) yamlcorpus.Result {
+		return yamlcorpus.Match("ns-flow-node", []byte(s), 0, "flow-out")
 	})
 
-	rec := grammar.NewRecognizer(64)
-	reused, _, _ := measure(func(s string) grammar.Result {
+	rec := yamlcorpus.NewRecognizer(64)
+	reused, _, _ := measure(func(s string) yamlcorpus.Result {
 		return rec.FlowNode([]byte(s))
 	})
 
@@ -341,6 +341,6 @@ func BenchmarkFlowNode(b *testing.B) {
 
 	b.ReportAllocs()
 	for b.Loop() {
-		grammar.FlowNode(src)
+		yamlcorpus.FlowNode(src)
 	}
 }

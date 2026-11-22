@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/go-openapi/conformance-suites/grammar"
+	"github.com/go-openapi/conformance-suites/internal/grammar"
 )
 
 // TestTheGrammarDigestIgnoresHowTheCheckoutEndsItsLines covers a Windows checkout, where core.autocrlf writes the

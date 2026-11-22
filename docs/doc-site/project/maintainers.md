@@ -18,10 +18,9 @@ This page is an outline. The structure is up for review; the prose is not writte
 
 ## Sections
 
-- One directory per grammar; `suite`, `stance`, `grammar` beside them
+- One directory per grammar (`json`, `yaml`); `suite` and `stance` beside them; the engine in `internal/grammar`
 - Public: `suite` and `stance` (a consumer reads a file and declares a table); the oracle's result types
-- The engine moves to the module's `internal` once the YAML side is here; grammar packages re-export
-  `type Result = grammar.Result`
+- Each grammar package re-exports the engine types it returns: `type Result = grammar.Result`
 - Package names carry the grammar: `jsoncorpus`, `yamlcorpus`, `yamlgen`
 - No parser imported in the root module, tests included; `consensus` is a module of its own
 - One module until a dependency or an embed forces a split (`yaml/corpus`)

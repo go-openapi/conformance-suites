@@ -18,7 +18,7 @@ This page is an outline. The structure is up for review; the prose is not writte
 
 ## Sections
 
-- Coverage buckets: production, and for YAML production by context; `grammar.Coverage`
+- Coverage buckets: production, and for YAML production by context; `Coverage`
 - Generation: `jsoncorpus.Generate`, seed, documents, mutants per document; the mutations
 - Smoke: valid documents that add coverage, `PerSignature: 16` refused documents, every encoding shape
 - Full: every document ({{% siteparam "metrics.json_full_cases" %}} for JSON)

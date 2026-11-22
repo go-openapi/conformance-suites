@@ -1,10 +1,12 @@
 // SPDX-FileCopyrightText: Copyright 2025 go-swagger maintainers
 // SPDX-License-Identifier: Apache-2.0
 
-package grammar
+package yamlcorpus
 
 import (
 	_ "embed"
+
+	"github.com/go-openapi/conformance-suites/internal/grammar"
 )
 
 //go:embed testdata/yaml-spec-1.2.json
@@ -12,7 +14,7 @@ var yamlSpec []byte
 
 // YAML is the YAML 1.2 grammar, compiled once from the productions the spec
 // publishes as a data structure, with the prose-only rules patched in.
-var YAML = MustCompile("YAML 1.2", yamlSpec, yamlPatches()...)
+var YAML = grammar.MustCompile("YAML 1.2", yamlSpec, yamlPatches()...)
 
 // yamlPatches are the places where compiling the published grammar faithfully
 // would not compile YAML faithfully.
@@ -45,8 +47,8 @@ var YAML = MustCompile("YAML 1.2", yamlSpec, yamlPatches()...)
 // The calibration does not measure patchPlainQuestionMark either -- no fixture
 // of the Test Suite writes a lone "?" against a flow indicator -- which is why
 // it took a corpus of a hundred thousand documents and a third parser to find.
-func yamlPatches() []Patch {
-	return []Patch{
+func yamlPatches() []grammar.Patch {
+	return []grammar.Patch{
 		{
 			Rule:    "s-l+block-indented",
 			Because: "the extra indentation a compact collection detects is not written down",
@@ -177,16 +179,37 @@ func MatchNoMemo(rule string, src []byte, n int, c string) Result {
 // Rules reports how many productions the YAML grammar defines.
 func Rules() int { return YAML.Rules() }
 
+// Recognizer is a reusable YAML oracle, for a caller that asks the question in
+// a loop.
+type Recognizer struct {
+	r *grammar.Recognizer
+}
+
 // NewRecognizer returns a reusable YAML oracle whose memo table is sized for
 // documents of about hint bytes.
-func NewRecognizer(hint int) *Recognizer { return YAML.Recognizer(hint) }
+func NewRecognizer(hint int) *Recognizer {
+	return &Recognizer{r: YAML.Recognizer(hint)}
+}
 
 // FlowNode reports whether src is exactly one YAML 1.2 flow node.
 func (r *Recognizer) FlowNode(src []byte) Result {
-	return r.Match("ns-flow-node", src, 0, "flow-out")
+	return r.r.Match("ns-flow-node", src, 0, "flow-out")
 }
 
 // Stream reports whether src is a valid YAML 1.2 stream.
 func (r *Recognizer) Stream(src []byte) Result {
-	return r.Match("l-yaml-stream", src, -1, "block-in")
+	return r.r.Match("l-yaml-stream", src, -1, "block-in")
 }
+
+// Match reports whether src is exactly one instance of the named YAML
+// production, entered at indentation n in context c.
+func (r *Recognizer) Match(rule string, src []byte, n int, c string) Result {
+	return r.r.Match(rule, src, n, c)
+}
+
+// Cover makes this recognizer record which productions it enters. Passing nil
+// stops it.
+func (r *Recognizer) Cover(c *Coverage) { r.r.Cover(c) }
+
+// NewCoverage returns an empty coverage vector over the YAML grammar.
+func NewCoverage() *Coverage { return YAML.NewCoverage() }
