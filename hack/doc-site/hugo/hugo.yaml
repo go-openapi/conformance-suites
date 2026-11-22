@@ -117,17 +117,16 @@ params:
     versionMessage: ''
     buildTime: ''
 
-  # Conformance metrics (populated by metrics.yaml)
+  # Corpus and grammar counts (populated by metrics.yaml)
   metrics:
-    buckets: 0
-    buckets_matched: 0
-    cases: 0
-    decoder_scoreable: 0
-    decoder_passing: 0
-    tojson_scoreable: 0
-    tojson_passing: 0
-    oracle_scoreable: 0
-    oracle_passing: 0
+    json_rules: 0
+    yaml_rules: 0
+    json_tags: 0
+    json_mutations: 0
+    json_smoke_cases: 0
+    json_smoke_refused: 0
+    json_full_cases: 0
+    json_full_size: ''
 
 # Menu configuration
 menu:
