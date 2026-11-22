@@ -17,8 +17,8 @@ The JSON suite is usable today. The YAML suite is moving here from [go-openapi/g
 
 ### Getting started
 
-A corpus is a gzipped JSON Lines file. Any language that reads JSON and base64 can read it: you do not need
-Go, and you do not need this module. See [Read a corpus](./getting-started/read-a-corpus/).
+Each suite is published as a gzipped JSON Lines file. You can read it from any language with a JSON reader
+and a base64 decoder: you need neither Go nor this module. See [Read a corpus](./getting-started/read-a-corpus/).
 
 To use the oracles, the generators, or the embedded corpus from Go:
 
