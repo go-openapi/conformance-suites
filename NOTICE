@@ -18,13 +18,13 @@ This software ships with copies of other software which license terms are recall
 Third-party notices for github.com/go-openapi/conformance-suites
 ============================================================
 
-github.com/yaml/yaml-grammar -- grammar/testdata/yaml-spec-1.2.json
+github.com/yaml/yaml-grammar -- yaml/testdata/yaml-spec-1.2.json
 ------------------------------------------------------------
 
-grammar/testdata/yaml-spec-1.2.json is copied unmodified from
+yaml/testdata/yaml-spec-1.2.json is copied unmodified from
 https://github.com/yaml/yaml-grammar/blob/68cba4e5c77f13b316da71b129da9b986ea80a55/yaml-spec-1.2.json
 (git blob 69cc3ee97ed22f97bb16b0dd76f8eff57742391c, identical on master as of 2026-11-22).
-The grammar package embeds it and compiles the YAML 1.2 recognizer from it.
+The yaml package embeds it and compiles the YAML 1.2 recognizer from it.
 
 That repository states no license, and neither does https://github.com/yaml/yaml-spec.
 We have not been granted a license for this file. It is not covered by this project's
