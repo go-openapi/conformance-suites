@@ -19,7 +19,7 @@ import (
 )
 
 // stored is the corpus file that package yamlembed embeds.
-const stored = "../../corpus/testdata/yaml-smoke.jsonl.gz"
+const stored = "../../corpus/testdata/yaml-compact.jsonl.gz"
 
 var writeCorpus = flag.Bool("yamlbuild.write", false, "rewrite the stored corpus")
 
@@ -38,7 +38,7 @@ func TestTheStoredCorpusIsWhatTheOracleWouldSayNow(t *testing.T) {
 	}
 
 	var built bytes.Buffer
-	if err := yamlbuild.Smoke().Write(&built); err != nil {
+	if err := yamlbuild.Compact().Write(&built); err != nil {
 		t.Fatal(err)
 	}
 
@@ -73,7 +73,7 @@ func TestRegenerate(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := yamlbuild.Smoke().Write(&buf); err != nil {
+	if err := yamlbuild.Compact().Write(&buf); err != nil {
 		t.Fatal(err)
 	}
 
@@ -88,7 +88,7 @@ func TestRegenerate(t *testing.T) {
 // rather than a generator: read it and score against it with no oracle, no
 // generation and no fuzzing in the loop.
 func TestTheCorpusIsUsableWithNothingElse(t *testing.T) {
-	header, cases, err := yamlembed.SmokeSuite()
+	header, cases, err := yamlembed.CompactSuite()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +148,7 @@ func TestTheCorpusIsUsableWithNothingElse(t *testing.T) {
 // same ones whatever it denotes. A minimizer consulting only what the grammar
 // saw would keep one of each family and drop the rest as duplicates.
 func TestTheEnumeratedFamiliesSurviveMinimizing(t *testing.T) {
-	_, cases, err := yamlembed.SmokeSuite()
+	_, cases, err := yamlembed.CompactSuite()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,7 +174,7 @@ func TestTheEnumeratedFamiliesSurviveMinimizing(t *testing.T) {
 // something. A corpus that reached a third of it would be a corpus that had
 // explored one corner and called it a language.
 func TestTheCorpusReachesMostOfTheGrammar(t *testing.T) {
-	_, cases, err := yamlembed.SmokeSuite()
+	_, cases, err := yamlembed.CompactSuite()
 	if err != nil {
 		t.Fatal(err)
 	}

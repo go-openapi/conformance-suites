@@ -7,8 +7,8 @@
 // every production the RFC publishes runs as written. [Generate] draws
 // documents from a seed and breaks each of them a fixed number of times,
 // [Build] keeps the ones entering a coverage bucket nothing has entered yet,
-// and [Build.Write] produces the artifact. [Smoke] is the corpus checked in
-// beside this package, and [SmokeSuite] reads it with one call.
+// and [Build.Write] produces the artifact. [Compact] is the corpus checked in
+// beside this package, and [CompactSuite] reads it with one call.
 //
 // # JSON asks fewer questions than YAML
 //
@@ -26,7 +26,7 @@
 //
 // Read the artifact and score a parser against it:
 //
-//	header, cases, err := jsoncorpus.SmokeSuite()
+//	header, cases, err := jsoncorpus.CompactSuite()
 //
 // [Tags] reports what a document exhibits and [Describe] builds the
 // [stance.Doc] a table turns into an expectation. [Normalize] strips the

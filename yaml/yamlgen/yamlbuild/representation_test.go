@@ -74,7 +74,7 @@ func TestAWideFloatIsAJSONNumberInTheMeaning(t *testing.T) {
 func TestTheStoredCorpusStatesAWideFloatAsANumber(t *testing.T) {
 	t.Parallel()
 
-	_, cases, err := yamlembed.SmokeSuite()
+	_, cases, err := yamlembed.CompactSuite()
 	require.NoError(t, err)
 
 	checked := 0

@@ -29,7 +29,7 @@ func TestTheGrammarDigestIgnoresHowTheCheckoutEndsItsLines(t *testing.T) {
 		t.Errorf("a CRLF checkout digests as %s, the LF file as %s", fromCRLF.Digest(), JSON.Digest())
 	}
 
-	header, _, err := SmokeSuite()
+	header, _, err := CompactSuite()
 	if err != nil {
 		t.Fatal(err)
 	}

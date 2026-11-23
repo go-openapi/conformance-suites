@@ -25,7 +25,7 @@ The Go reader accepts lines up to 8 MiB.
 
 ## Header
 
-The header of the embedded JSON smoke corpus:
+The header of the embedded JSON compact corpus:
 
 ```json
 {
@@ -34,7 +34,7 @@ The header of the embedded JSON smoke corpus:
   "digest": "sha256:ae0322c3aeb0db880dc20a2a5984f4318d59469efe4c5e3b80de5f1314ac584c",
   "generator": "jsoncorpus/1",
   "seed": 1,
-  "tier": "smoke",
+  "tier": "compact",
   "cases": 1642,
   "vocabulary": [
     { "tag": "encoding/bom", "stage": "parse" },
@@ -53,7 +53,7 @@ The header of the embedded JSON smoke corpus:
 | `digest` | string | always | `sha256:` and the hex SHA-256 of the grammar file behind the verdicts. |
 | `generator` | string | always | The name and version of the generator that produced the documents: `jsoncorpus/1`. |
 | `seed` | integer | always | The seed given to the generator. |
-| `tier` | string | always | `smoke` for the small corpus embedded in the module, `full` for the complete one. |
+| `tier` | string | always | `compact` for the small corpus embedded in the module, `full` for the complete one. |
 | `cases` | integer | always | The number of case lines after the header. |
 | `vocabulary` | array of tag specs | always | Every tag used by at least one case, sorted by name. See below. |
 | `readings` | array of strings | optional | Every reading the corpus considered when it recorded meanings, sorted: `yaml-1.2-core`, `yaml-1.1`. |

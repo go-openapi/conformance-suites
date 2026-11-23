@@ -25,7 +25,7 @@ const Generator = "jsoncorpus/1"
 // Build is the recipe for a corpus: how much to generate, and how much of it
 // to keep.
 type Build struct {
-	// Tier labels the result. Two are meant: "smoke", small enough to live in
+	// Tier labels the result. Two are meant: "compact", small enough to live in
 	// the repository and be embedded, and "full", released as an artifact.
 	Tier string
 	// Seed reproduces the whole thing.
@@ -78,11 +78,11 @@ func (b Build) Write(w io.Writer) error {
 	return out.Close()
 }
 
-// Smoke is the corpus that lives in the repository: small enough to embed and
+// Compact is the corpus that lives in the repository: small enough to embed and
 // to run on every change, large enough to keep the defects the measurement says
 // it should.
-func Smoke() Build {
-	return Build{Tier: "smoke", Seed: 1, Documents: 8000, MutantsEach: 24, PerSignature: 16}
+func Compact() Build {
+	return Build{Tier: "compact", Seed: 1, Documents: 8000, MutantsEach: 24, PerSignature: 16}
 }
 
 // Full is the corpus that ships as a release artifact, where nothing is
@@ -219,15 +219,15 @@ func documentOf(name string) int {
 	return doc
 }
 
-//go:embed testdata/json-smoke.jsonl.gz
-var smokeArtifact []byte
+//go:embed testdata/json-compact.jsonl.gz
+var compactArtifact []byte
 
-// SmokeSuite returns the corpus checked in beside this package.
+// CompactSuite returns the corpus checked in beside this package.
 //
 // This is the second way an artifact is consumed. Released, the same file is
 // read by anyone with a JSON reader and base64; embedded, it is a corpus a Go
 // test importing this package gets with one call and no generation, no oracle
 // and no fuzzing.
-func SmokeSuite() (suite.Header, []suite.Case, error) {
-	return suite.FromBytes(smokeArtifact)
+func CompactSuite() (suite.Header, []suite.Case, error) {
+	return suite.FromBytes(compactArtifact)
 }

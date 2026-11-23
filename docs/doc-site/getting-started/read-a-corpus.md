@@ -18,8 +18,8 @@ This page is an outline. The structure is up for review; the prose is not writte
 
 ## Sections
 
-- Where corpora come from: released assets (not yet), `jsoncorpus.Full().Write` today, the embedded smoke corpus
-- Tiers: smoke and full, with counts from `metrics.yaml`
+- Where corpora come from: released assets (not yet), `jsoncorpus.Full().Write` today, the embedded compact corpus
+- Tiers: compact and full, with counts from `metrics.yaml`
 - The layout in one screen: gzip, JSON Lines, header on line 1, one case per line, `src` in base64
 - Reading it with `jq`: `gunzip -c`, `jq -c`, `@base64d` -- one command per question (how many cases, which tags)
 - Reading it in another language: a short Python example

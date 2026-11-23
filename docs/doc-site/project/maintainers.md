@@ -24,6 +24,6 @@ This page is an outline. The structure is up for review; the prose is not writte
 - Package names carry the grammar: `jsoncorpus`, `yamlcorpus`, `yamlgen`
 - No parser imported in the root module, tests included; `consensus` is a module of its own
 - One module until a dependency or an embed forces a split (`yaml/corpus`)
-- Regenerating the smoke corpus, and the regenerate-and-diff test
+- Regenerating the compact corpus, and the regenerate-and-diff test
 - Updating `metrics.yaml`
 - Releasing: `bump-release.yml` or a signed semver tag; corpus assets once released

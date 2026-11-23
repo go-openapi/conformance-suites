@@ -62,7 +62,7 @@ func TestTheGeneratedCorpusIsWiderThanTheSuite(t *testing.T) {
 		t.Skipf("the YAML Test Suite is not available: %v", err)
 	}
 
-	_, cases, err := yamlembed.SmokeSuite()
+	_, cases, err := yamlembed.CompactSuite()
 	if err != nil {
 		t.Fatal(err)
 	}

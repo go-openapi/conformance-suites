@@ -15,7 +15,7 @@ import (
 	"github.com/go-openapi/conformance-suites/suite"
 )
 
-const stored = "testdata/json-smoke.jsonl.gz"
+const stored = "testdata/json-compact.jsonl.gz"
 
 // TestTheStoredCorpusIsWhatTheOracleWouldSayNow is regenerate-and-diff, and it
 // is the guard that keeps this whole idea from going quietly wrong.
@@ -36,7 +36,7 @@ func TestTheStoredCorpusIsWhatTheOracleWouldSayNow(t *testing.T) {
 	}
 
 	var built bytes.Buffer
-	if err := jsoncorpus.Smoke().Write(&built); err != nil {
+	if err := jsoncorpus.Compact().Write(&built); err != nil {
 		t.Fatal(err)
 	}
 
@@ -72,7 +72,7 @@ func TestRegenerate(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := jsoncorpus.Smoke().Write(&buf); err != nil {
+	if err := jsoncorpus.Compact().Write(&buf); err != nil {
 		t.Fatal(err)
 	}
 
@@ -87,7 +87,7 @@ func TestRegenerate(t *testing.T) {
 // artifact rather than a generator: a consumer reads it and scores against it
 // with no oracle, no generation and no fuzzing in the loop.
 func TestTheEmbeddedCorpusIsUsableWithNothingElse(t *testing.T) {
-	header, cases, err := jsoncorpus.SmokeSuite()
+	header, cases, err := jsoncorpus.CompactSuite()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestTheEmbeddedCorpusIsUsableWithNothingElse(t *testing.T) {
 // TestTheStanceCanScoreEveryStoredCase holds the corpus to the standard the
 // suite itself is held to: a case nobody can score is not a test.
 func TestTheStanceCanScoreEveryStoredCase(t *testing.T) {
-	header, cases, err := jsoncorpus.SmokeSuite()
+	header, cases, err := jsoncorpus.CompactSuite()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +180,7 @@ func TestTheStanceCanScoreEveryStoredCase(t *testing.T) {
 // grammar saw would drop every one of them, and the corpus would silently stop
 // saying anything about encoding.
 func TestTheEnumeratedShapesSurviveMinimizing(t *testing.T) {
-	_, cases, err := jsoncorpus.SmokeSuite()
+	_, cases, err := jsoncorpus.CompactSuite()
 	if err != nil {
 		t.Fatal(err)
 	}

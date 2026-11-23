@@ -17,7 +17,7 @@ func sample() (suite.Header, []suite.Case) {
 		Digest:    "sha256:deadbeef",
 		Generator: "jsonspike/1",
 		Seed:      1,
-		Tier:      "smoke",
+		Tier:      "compact",
 		Cases:     3,
 		Vocabulary: []suite.TagSpec{
 			{Tag: "number/out-of-range", Stage: "construct"},
@@ -229,8 +229,8 @@ func TestAnArtifactMustSayWhereItCameFrom(t *testing.T) {
 		what string
 		h    suite.Header
 	}{
-		{"the grammar", suite.Header{Digest: "d", Tier: "smoke"}},
-		{"the grammar digest", suite.Header{Grammar: "g", Tier: "smoke"}},
+		{"the grammar", suite.Header{Digest: "d", Tier: "compact"}},
+		{"the grammar digest", suite.Header{Grammar: "g", Tier: "compact"}},
 		{"the tier", suite.Header{Grammar: "g", Digest: "d"}},
 	} {
 		if _, err := suite.NewWriter(&bytes.Buffer{}, missing.h); err == nil {
@@ -267,7 +267,7 @@ func TestAConsumerCanTellWhenATagIsNewToIt(t *testing.T) {
 // quietly go missing.
 func TestTheVocabularyOrderDoesNotReachTheBytes(t *testing.T) {
 	forward := suite.Header{
-		Grammar: "RFC 8259", Digest: "sha256:deadbeef", Generator: "g", Tier: "smoke",
+		Grammar: "RFC 8259", Digest: "sha256:deadbeef", Generator: "g", Tier: "compact",
 		Vocabulary: []suite.TagSpec{
 			{Tag: "a/one", Stage: "parse"},
 			{Tag: "b/two", Stage: "construct", Settled: "reject", Because: "the spec says so"},

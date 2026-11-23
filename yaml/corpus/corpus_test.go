@@ -12,8 +12,8 @@ import (
 	yamlembed "github.com/go-openapi/conformance-suites/yaml/corpus"
 )
 
-func TestBytesIsTheFileSmokeSuiteReads(t *testing.T) {
-	header, cases, err := yamlembed.SmokeSuite()
+func TestBytesIsTheFileCompactSuiteReads(t *testing.T) {
+	header, cases, err := yamlembed.CompactSuite()
 	require.NoError(t, err)
 
 	fromBytes, casesFromBytes, err := suite.FromBytes(yamlembed.Bytes())

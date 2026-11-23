@@ -5,7 +5,7 @@ description: |
   Score a Go parser against the embedded JSON corpus with `suite`, `stance` and `jsoncorpus`.
 ---
 
-This page scores the standard library's `json.Valid` against the JSON smoke corpus embedded in the module.
+This page scores the standard library's `json.Valid` against the JSON compact corpus embedded in the module.
 Replace `json.Valid` with a call to your own parser.
 
 ## Install
@@ -18,10 +18,10 @@ The module requires {{% goversion "go1.26" %}} or newer.
 
 ## Load a corpus
 
-`jsoncorpus.SmokeSuite` returns the header and the cases of the smoke corpus embedded in the module:
+`jsoncorpus.CompactSuite` returns the header and the cases of the compact corpus embedded in the module:
 
 ```go
-header, cases, err := jsoncorpus.SmokeSuite()
+header, cases, err := jsoncorpus.CompactSuite()
 ```
 
 To use a corpus file you downloaded or built, open it and call `suite.ReadAll`:
@@ -121,7 +121,7 @@ for _, c := range cases {
 }
 ```
 
-With the table above, `json.Valid` has no disagreement with the smoke corpus.
+With the table above, `json.Valid` has no disagreement with the compact corpus.
 
 ## Read the outcome
 

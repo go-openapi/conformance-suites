@@ -3,7 +3,7 @@
 
 // Package yamlembed embeds the stored YAML corpus, so a Go test can read it with one call.
 //
-// [github.com/go-openapi/conformance-suites/yaml/yamlgen/yamlbuild] writes the corpus to testdata/yaml-smoke.jsonl.gz
+// [github.com/go-openapi/conformance-suites/yaml/yamlgen/yamlbuild] writes the corpus to testdata/yaml-compact.jsonl.gz
 // in this directory. The file is a released artifact: any JSON reader with base64 can read it, and this package spares
 // a Go test the generator, the oracle and their dependencies.
 package yamlembed
@@ -14,17 +14,17 @@ import (
 	"github.com/go-openapi/conformance-suites/suite"
 )
 
-//go:embed testdata/yaml-smoke.jsonl.gz
-var smokeArtifact []byte
+//go:embed testdata/yaml-compact.jsonl.gz
+var compactArtifact []byte
 
-// SmokeSuite returns the header and the cases of the stored corpus.
-func SmokeSuite() (suite.Header, []suite.Case, error) {
-	return suite.FromBytes(smokeArtifact)
+// CompactSuite returns the header and the cases of the stored corpus.
+func CompactSuite() (suite.Header, []suite.Case, error) {
+	return suite.FromBytes(compactArtifact)
 }
 
 // Bytes returns the stored corpus as written: a gzipped JSONL file.
 //
 // Use it to keep a copy of the file in step with this module.
 func Bytes() []byte {
-	return smokeArtifact
+	return compactArtifact
 }

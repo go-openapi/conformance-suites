@@ -31,7 +31,7 @@ import (
 // gone, quoted text gone, numbers gone -- so that the same complaint about
 // different documents is one signature. Counting the distinct signatures a
 // corpus provokes measures how much the parser can still tell you: 54 over the
-// smoke tier's refused documents. The parser's whole vocabulary, and the part
+// compact tier's refused documents. The parser's whole vocabulary, and the part
 // of it nothing reaches, are measured by TestTheParserVocabularyGapIsMeasured
 // rather than counted by hand here
 // while every verdict stayed exactly where it was.

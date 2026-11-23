@@ -38,7 +38,7 @@ type Build struct {
 	PerSignature int
 }
 
-// Smoke is the corpus that lives in the repository.
+// Compact is the corpus that lives in the repository.
 //
 // Every number here is measured, and the measurement changed which knob to
 // turn. See TestMeasureK.
@@ -73,16 +73,16 @@ type Build struct {
 // the corpus held one by luck and had held none the build before. Fewer mutants
 // each does not cost complaints -- 70 against 64 -- because what finds a
 // complaint is more documents, which the paragraph above already said.
-func Smoke() Build {
-	return Build{Tier: "smoke", Seed: 1, Documents: 3000, MutantsEach: 16, PerSignature: 16}
+func Compact() Build {
+	return Build{Tier: "compact", Seed: 1, Documents: 3000, MutantsEach: 16, PerSignature: 16}
 }
 
 // Full is the corpus that ships as a release artifact, where nothing is
 // discarded.
 //
-// Bigger on both axes than the smoke tier, because nothing here has to fit in a
+// Bigger on both axes than the compact tier, because nothing here has to fit in a
 // repository: four times the documents and no minimizing at all, which finds 50
-// distinct complaints against the smoke tier's 29, in 2.2MB.
+// distinct complaints against the compact tier's 29, in 2.2MB.
 //
 // That number is still climbing. The library can make around 55 distinct
 // complaints while reading a document, counted from its own source, so a corpus

@@ -85,7 +85,7 @@ type Header struct {
 	Generator string `json:"generator"`
 	// Seed reproduces the documents exactly.
 	Seed uint64 `json:"seed"`
-	// Tier says how much was kept: "smoke" for the small embedded corpus,
+	// Tier says how much was kept: "compact" for the small embedded corpus,
 	// "full" for the one that ships as a release artifact.
 	Tier string `json:"tier"`
 	// Cases is how many follow, so a truncated file is detectable.

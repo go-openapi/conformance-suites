@@ -4,7 +4,7 @@
 # Re-measure before changing a number, and record here which run it came from.
 #
 # Measured 2026-11-22 against master, with a throwaway test in ./json calling
-# jsoncorpus.SmokeSuite, jsoncorpus.Full().Write, jsoncorpus.Vocabulary,
+# jsoncorpus.CompactSuite, jsoncorpus.Full().Write, jsoncorpus.Vocabulary,
 # jsoncorpus.MutationNames, jsoncorpus.JSON.Rules and yamlcorpus.YAML.Rules.
 params:
     metrics:
@@ -15,7 +15,7 @@ params:
         # JSON suite.
         json_tags: 7            # 3 JSON tags + 4 encoding tags
         json_mutations: 8
-        json_smoke_cases: 1642
-        json_smoke_refused: 1323
+        json_compact_cases: 1642
+        json_compact_refused: 1323
         json_full_cases: 154358
         json_full_size: "2.2 MiB"

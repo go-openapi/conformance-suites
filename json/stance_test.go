@@ -164,7 +164,7 @@ func realBehaviour(short string) (stance.Outcome, bool) {
 // it is not measured against anything, because there is nothing here to measure
 // it against. What is being demonstrated is the mechanism, not a parser.
 func TestOneCorpusScoresTwoStages(t *testing.T) {
-	_, cases, err := jsoncorpus.SmokeSuite()
+	_, cases, err := jsoncorpus.CompactSuite()
 	if err != nil {
 		t.Fatal(err)
 	}

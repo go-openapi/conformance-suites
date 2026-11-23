@@ -210,7 +210,7 @@ func TestTheHeaderCarriesEnoughToScoreWithoutUs(t *testing.T) {
 		Grammar:    "YAML 1.2",
 		Digest:     "sha256:x",
 		Generator:  "yamlcorpus/1",
-		Tier:       "smoke",
+		Tier:       "compact",
 		Vocabulary: suite.SpecsFor(used(), yamlbuild.Vocabulary(), yamlbuild.AnchorRules()),
 	}
 

@@ -150,7 +150,7 @@ func holdsAMappingWithAKey(v yamlgen.Value) bool {
 // construction -- and if that ever stopped being true, these documents would
 // start going unscored exactly where they are most useful.
 func TestABreakIsNotAByteMutation(t *testing.T) {
-	_, cases, err := yamlembed.SmokeSuite()
+	_, cases, err := yamlembed.CompactSuite()
 	if err != nil {
 		t.Fatal(err)
 	}

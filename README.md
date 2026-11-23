@@ -64,9 +64,9 @@ implementation-defined property the document has. You declare your parser's posi
 - **Coverage.** The oracle records which productions a document entered, and for YAML in which
   context. The corpus builder uses it to drop valid documents that add no coverage.
 - **JSON corpus.** `jsoncorpus.Generate` draws documents from a seed and mutates each of them.
-  `jsoncorpus.Smoke` builds a small corpus: valid documents that add coverage, up to 16 refused
+  `jsoncorpus.Compact` builds a small corpus: valid documents that add coverage, up to 16 refused
   documents per failure signature, and every encoding shape. `jsoncorpus.Full` keeps every document.
-  `jsoncorpus.SmokeSuite` returns the smoke corpus embedded in the module.
+  `jsoncorpus.CompactSuite` returns the compact corpus embedded in the module.
 - **A portable file format.** A corpus is a gzipped JSON Lines file: a header, then one case per line.
   Any language with a JSON reader and base64 can read it. In Go, use `suite.ReadAll`.
 - **Positions.** A `stance.Table` declares your parser's position on each tag, and `Table.Expect` turns
@@ -89,7 +89,7 @@ ok = jsoncorpus.Text([]byte(`{"a":1}`)).OK         // RFC 8259
 Score a JSON parser against the embedded corpus:
 
 ```go
-header, cases, err := jsoncorpus.SmokeSuite()
+header, cases, err := jsoncorpus.CompactSuite()
 if err != nil {
 	return err
 }
