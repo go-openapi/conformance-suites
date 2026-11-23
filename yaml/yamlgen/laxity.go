@@ -1,0 +1,62 @@
+// SPDX-FileCopyrightText: Copyright 2025 go-swagger maintainers
+// SPDX-License-Identifier: Apache-2.0
+
+package yamlgen
+
+// Laxity is a document YAML 1.2 refuses that this library reads anyway.
+//
+// This is the other direction from [Divergence], and it is recorded differently
+// because it is found differently. A Divergence names a shape, since every run
+// draws different documents and there is nothing to point at. A Laxity names a
+// document: the mutants that survive the recognizer are few, so each one can be
+// reduced, checked and pinned.
+type Laxity struct {
+	// Name is short and stable, so a count can be reported against it.
+	Name string
+	// Src is the document, reduced to the smallest one that still shows it.
+	Src string
+	// Rule is the production it breaks.
+	//
+	// Named so the claim can be checked against the spec rather than against
+	// the recognizer. That matters more here than anywhere else in this
+	// package: a [Divergence] needs the grammar's acceptance to be
+	// right, where every one of these needs its refusal to be.
+	Rule string
+	// Reads is what the library makes of the document.
+	//
+	// Pinned rather than described, because it is what separates the two
+	// severities. Reading an invalid document as the obvious thing is a
+	// permissive extension and mostly harmless. Reading it as something else is
+	// worse than refusing it, since nothing downstream is in a position to
+	// notice -- which is what the entries below that swallow a byte or a value
+	// do.
+	Reads any
+	// Match recognizes other documents of the same class, so that the hunt
+	// stops re-reporting one it is standing on. Nil means only Src itself.
+	//
+	// Left nil unless the class is one a predicate can state exactly. A loose
+	// one here is worse than a noisy hunt: it would absorb the next finding
+	// silently, and the whole value of this list is that what is in it has been
+	// looked at.
+	Match func(src string) bool
+}
+
+// Covers reports whether src is an instance of this entry.
+func (l Laxity) Covers(src string) bool {
+	if l.Match != nil {
+		return l.Match(src)
+	}
+
+	return l.Src == src
+}
+
+// KnownlyAccepted returns the entry covering src, or nil.
+func KnownlyAccepted(lax []Laxity, src string) *Laxity {
+	for i := range lax {
+		if lax[i].Covers(src) {
+			return &lax[i]
+		}
+	}
+
+	return nil
+}
