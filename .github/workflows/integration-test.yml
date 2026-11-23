@@ -13,13 +13,15 @@ on:
 
 jobs:
   test:
+    # The YAML 1.2 reference parser and libfyaml, which yaml/consensus and yaml/calibrate read documents with.
+    # The libfyaml wheel is manylinux, so this runs on Linux only.
     name: integration (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -31,24 +33,29 @@ jobs:
           cache: true
           cache-dependency-path: '**/go.sum'
 
+      - name: Install the reference parsers
+        # Each script ends with --check, so a failed install fails here instead of skipping the tests.
+        run: |
+          hack/conformance/install-reference-parser.sh
+          hack/conformance/install-libfyaml.sh
+
       - name: Run integration tests
-        working-directory: internal/testintegration
         run: >
           go test
           -v
-          -tags testintegration
           -count 1
           -timeout 30m
           -coverprofile='integration.coverage.${{ matrix.os }}.out'
           -covermode=atomic
-          -coverpkg=github.com/go-openapi/analysis/...
-          ./...
+          -coverpkg=github.com/go-openapi/conformance-suites/...
+          ./yaml/consensus/...
+          ./yaml/calibrate/...
 
       - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          path: 'internal/testintegration/*.coverage.*.out'
+          path: '*.coverage.*.out'
           name: 'integration.coverage.${{ matrix.os }}'
           retention-days: 1
 
