@@ -157,7 +157,7 @@ func renameAnAlias(v yamlgen.Value) (yamlgen.Value, bool) {
 // than by a corpus document whose label would be wrong.
 func holdsAMergeKey(m yamlgen.Map) bool {
 	for _, p := range m.Pairs {
-		if _, isMerge := p.Key.(yamlgen.MergeKey); isMerge {
+		if yamlgen.IsMergeKey(p.Key) {
 			return true
 		}
 	}

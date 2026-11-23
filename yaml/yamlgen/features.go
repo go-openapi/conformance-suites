@@ -222,7 +222,19 @@ type Written struct {
 	// A merge key set it too until 8acf11b made the library resolve "<<" under
 	// the version the document declares. Each reading now has an answer of its
 	// own, so both go out instead of neither.
+	//
+	// A document declaring "%YAML 1.1" whose own reading refuses it sets it
+	// too: it means nothing under the version it declares.
 	MeansUnclear bool
+	// Refused names the readings that refuse the document, which therefore
+	// have no answer to state.
+	//
+	// One shape sets it: "!!int" over a text YAML 1.1 does not read as an
+	// integer, "!!int 0o143" or "!!int 099", in a document declaring no
+	// version. Under the core schema it means what it says; a reader applying
+	// 1.1 refuses it. Leaving the reading out of Readings would say the two
+	// agree, which is a different claim.
+	Refused []string
 }
 
 // Write emits v in the presentation st asks for and reports what it wrote.
@@ -262,7 +274,14 @@ func Write(v Value, st Style) Written {
 	// parses and denotes no Go value at all. Value.Decoded builds the map this
 	// package would state, and Go refuses to key it before the statement can be
 	// made.
-	w.MeansUnclear = (st.Version == Reading11Version && e.reads.splitALegacySpelling()) ||
+	if e.reads.refused11 {
+		// The 1.1 reading refuses the document, so it has no answer, and that
+		// is a different claim from agreeing with the core: see Refused.
+		w.Readings = nil
+		w.Refused = []string{Reading11}
+	}
+
+	w.MeansUnclear = (st.Version == Reading11Version && (e.reads.splitALegacySpelling() || e.reads.refused11)) ||
 		keysOnACollection(v) ||
 		malformedOrderedMap(v)
 

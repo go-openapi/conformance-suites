@@ -406,25 +406,81 @@ func (a Alias) Decoded() any { return a.V.Decoded() }
 // [Written.MeansUnclear] and the corpus stated nothing, on the ground that a
 // merging reader and a 1.2 reader were both right; they still are, and each of
 // them now has a meaning to be scored against.
+//
+// A "<<" tagged "!!merge" merges here too. The tag names the merge type
+// explicitly, so the version does not decide it, and the library merges it
+// under 1.2. The rule is the 1.1 one, as [readings.legacyMap] applies it: own
+// keys win, and among the merged mappings the earlier wins.
 func (m Map) Decoded() any {
 	out := newKeyedMap(len(m.Pairs))
 
+	var merged []any
+
 	for _, p := range m.Pairs {
+		if mergesUnderCore(p.Key) {
+			merged = append(merged, coreMergedMappings(p.Val)...)
+
+			continue
+		}
+
 		out.put(keyValue(p.Key), p.Val.Decoded())
+	}
+
+	for _, from := range merged {
+		eachEntry(from, func(key, value any) {
+			if !out.holds(key) {
+				out.put(key, value)
+			}
+		})
 	}
 
 	return out.value()
 }
 
+// mergesUnderCore reports whether k is a "<<" tagged "!!merge", under any
+// anchor.
+func mergesUnderCore(k Value) bool {
+	t, tagged := bareOfAnchor(k).(Tagged)
+
+	return tagged && t.Tag == TagMerge && IsMergeKey(t.V)
+}
+
+// coreMergedMappings returns what a "<<" value brings in under the core schema,
+// for a "<<" that merges there: each mapping as [Map.Decoded] reads it, in the
+// order they are to be merged. It is [readings.mergedMappings] without the 1.1
+// resolution of the scalars inside.
+func coreMergedMappings(v Value) []any {
+	switch n := v.(type) {
+	case Anchored:
+		return coreMergedMappings(n.V)
+	case Alias:
+		return coreMergedMappings(n.V)
+	case Tagged:
+		return coreMergedMappings(n.V)
+	case Map:
+		return []any{n.Decoded()}
+	case Seq:
+		out := make([]any, 0, len(n.Items))
+		for _, item := range n.Items {
+			out = append(out, coreMergedMappings(item)...)
+		}
+
+		return out
+	default:
+		return nil
+	}
+}
+
 // keyValue returns what a mapping decoded into an `any` holds a key by: what
 // the key resolves to.
 //
-// Two keys keep their name. A "<<" is the string "<<" under the core schema. A
-// collection is named by [KeyText], because a []any or a map cannot key a Go
-// map -- inserting one panics -- and the library refuses such a key, so
-// keysOnACollection has the generator state no meaning for the document.
+// Two keys keep their name. A "<<" is the string "<<" under the core schema,
+// whatever anchor or tag stands on it. A collection is named by [KeyText],
+// because a []any or a map cannot key a Go map -- inserting one panics -- and
+// the library refuses such a key, so keysOnACollection has the generator state
+// no meaning for the document.
 func keyValue(v Value) any {
-	if _, isMerge := v.(MergeKey); isMerge || isKeyCollection(v) {
+	if IsMergeKey(v) || isKeyCollection(v) {
 		return KeyText(v)
 	}
 
@@ -656,6 +712,10 @@ func (r *readings) mergedMappings(v Value) []any {
 		return r.mergedMappings(n.V)
 	case Alias:
 		return r.mergedMappings(n.V)
+	case Tagged:
+		// "<<: !!map {k: 1}" merges the mapping: the tag names its kind, which
+		// a "<<" value has to be anyway.
+		return r.mergedMappings(n.V)
 	case Map:
 		// A map[string]any or a map[any]any, as [keyedMap] settled it.
 		return []any{r.legacy(n)}
@@ -762,6 +822,11 @@ const (
 	// else, and drawTextual writes the tag as it draws the value.
 	TagTimestamp = "!!timestamp"
 	TagBinary    = "!!binary"
+
+	// TagMerge is the tag of the "<<" key. Written on it, it asks for the merge
+	// under every version: the library merges a "!!merge <<" entry under YAML
+	// 1.2, where a bare "<<" is an ordinary key.
+	TagMerge = "!!merge"
 )
 
 // isSequenceOfSinglePairs reports whether v is the shape `!!omap` names: a
@@ -840,6 +905,14 @@ func TagFor(v Value) []string {
 // which are aliases to them, and some of which carry a tag.
 func Values() *rapid.Generator[Value] {
 	return rapid.Custom(func(t *rapid.T) Value {
+		if family := drawFamily(t); family != nil {
+			// Tagged and nothing more. A family's aliases depend on its
+			// structure -- "again: *m2" names an anchor inside "item" -- and the
+			// aliaser replaces whole nodes with aliases, which can take the
+			// anchor out from under one. The tagger only wraps a node.
+			return withTags(t, family)
+		}
+
 		return withAliases(t, withTags(t, values(0).Draw(t, "tree")))
 	})
 }
@@ -876,18 +949,16 @@ func (g *tagger) walk(v Value) Value {
 	case Map:
 		pairs := make([]Pair, 0, len(n.Pairs))
 		for _, p := range n.Pairs {
-			// Keys are left untagged, and the emitter can write a tagged one:
-			// keyIn puts the properties in front of the key and
-			// keyRunsIntoTheColon separates the ":" a tag URI would swallow.
-			// Turning the draw on is held until the parser reads them --
-			// TestDefectATaggedKeyIsMishandled and
-			// TestDefectATagOnAKeyEmptiesAStructField say what it does today,
-			// and a ledger entry wide enough to excuse them would excuse every
-			// document holding a tagged key, which is one drawn node in seven.
+			// A key takes a tag as any node does. keyIn puts the properties in
+			// front of the key and keyRunsIntoTheColon separates the ":" a tag
+			// URI would swallow. The draw was held while go-yaml misread tagged
+			// keys; both defects are fixed pins now
+			// (TestFixedATagOnAKeyReachesAStructFieldAndKeepsItsType,
+			// TestFixedATaggedBlockMappingResolvesItsKeys).
 			//
-			// The aliaser anchors keys meanwhile, which reaches the same
-			// emitter path with one open defect rather than a family.
-			pairs = append(pairs, Pair{Key: p.Key, Val: g.walk(p.Val)})
+			// TagFor offers only the tags that keep what the key resolves to,
+			// so tagging cannot make two keys of drawMap's distinct ones.
+			pairs = append(pairs, Pair{Key: g.maybeTag(p.Key), Val: g.walk(p.Val)})
 		}
 
 		return g.maybeTag(Map{Pairs: pairs})
@@ -947,6 +1018,14 @@ const (
 )
 
 func (a *aliaser) walk(v Value) Value {
+	switch v.(type) {
+	case Anchored, Alias:
+		// A family document's own anchor or alias, which holds the very Value
+		// its anchor does. Anchoring it again would name one node twice, and
+		// rewriting below it would leave its aliases holding the old Value.
+		return v
+	}
+
 	if len(a.pool) > 0 && rapid.IntRange(0, aliasOdds).Draw(a.t, "alias") == 0 {
 		target := rapid.SampledFrom(a.pool).Draw(a.t, "target")
 
@@ -1001,6 +1080,13 @@ func (a *aliaser) children(v Value) Value {
 
 		return Map{Pairs: a.merge(a.aliasAKey(pairs), from)}
 	case Tagged:
+		if n.Tag == TagOMap || n.Tag == TagPairs {
+			// Left whole. Its entries are one-entry mappings, and a "<<" or an
+			// alias key the aliaser adds to one would make it two entries,
+			// which is no longer the shape the tag names.
+			return v
+		}
+
 		return Tagged{Tag: n.Tag, V: a.children(n.V)}
 	default:
 		return v
@@ -1021,6 +1107,12 @@ func (a *aliaser) children(v Value) Value {
 // once in every message naming it -- and drawKeyCollection keeps keys small for
 // the same reason.
 func (a *aliaser) anchorKey(k Value) Value {
+	if _, anchored := k.(Anchored); anchored || IsMergeKey(k) {
+		// A family document's anchored key or "<<", which the family drew
+		// whole. A pooled "<<" would let a later alias write a second one.
+		return k
+	}
+
 	if rapid.IntRange(0, keyAnchorOdds).Draw(a.t, "keyanchor") != 0 {
 		return k
 	}
@@ -1109,15 +1201,22 @@ func stringKeys(pairs []Pair) []Str {
 	return out
 }
 
-// mergeOdds is one in N, over the mappings drawn while the pool holds a
-// mapping to merge from.
+// mergeOdds is one in N, over the mappings drawn; mergeFromAnchorOdds is the
+// same where the pool already holds a mapping to merge from.
 //
-// Low, because a merge is a rare thing to write. It no longer costs the corpus
-// a stated meaning: since the library resolves "<<" under the version the
-// document declares, a merge document denotes an ordinary "<<" key under the
-// core schema and the merged mapping under YAML 1.1, and [Written.Readings]
-// carries both.
-const mergeOdds = 11
+// A merge no longer costs the corpus a stated meaning: since the library
+// resolves "<<" under the version the document declares, a merge document
+// denotes an ordinary "<<" key under the core schema and the merged mapping
+// under YAML 1.1, and [Written.Readings] carries both.
+//
+// The merge family (drawMergeFamily) carries the placements a week of go-yaml
+// fixes lived in, so these stay low and the drawn trees keep their shape. A
+// mapping with an anchored mapping above it is offered the merge a little more
+// often, because only there can the "<<" value be an alias.
+const (
+	mergeOdds           = 11
+	mergeFromAnchorOdds = 5
+)
 
 // merge gives a mapping a "<<" entry, one time in mergeOdds.
 //
@@ -1150,7 +1249,12 @@ const mergeOdds = 11
 // from is the pool as it stood before this mapping's children were walked. See
 // the Map case in children for why it cannot be taken afterwards.
 func (a *aliaser) merge(pairs []Pair, from []Anchored) []Pair {
-	if len(pairs) == 0 || rapid.IntRange(0, mergeOdds).Draw(a.t, "merge") != 0 {
+	odds := mergeOdds
+	if len(from) > 0 {
+		odds = mergeFromAnchorOdds
+	}
+
+	if len(pairs) == 0 || rapid.IntRange(0, odds).Draw(a.t, "merge") != 0 {
 		return pairs
 	}
 
@@ -1182,8 +1286,73 @@ func (a *aliaser) merge(pairs []Pair, from []Anchored) []Pair {
 	// In front of the mapping's own entries, which is where a "<<" is usually
 	// written and the order that makes the precedence rule visible: the own
 	// keys come after and still win.
-	return append([]Pair{{Key: MergeKey{}, Val: val}}, pairs...)
+	return append([]Pair{{Key: a.mergeKey(), Val: a.mergeValue(val)}}, pairs...)
 }
+
+// mergeKey draws the "<<" key with its properties: "!!merge" one time in
+// mergeTagOdds, and an anchor one time in mergeAnchorOdds.
+//
+// The properties are drawn here because the tagger has run before the aliaser
+// made the entry, so no other pass can reach it. Between 2026-11-16 and
+// 2026-11-23 go-yaml fixed a tag on the "<<" key (da495525) and an anchored
+// one (669052bf), and the corpus held neither.
+//
+// The anchor is not pooled: an alias to it standing as a key would write a
+// second "<<", which is a different document from the one drawn.
+func (a *aliaser) mergeKey() Value {
+	var k Value = MergeKey{}
+
+	if rapid.IntRange(0, mergeTagOdds).Draw(a.t, "mergekeytag") == 0 {
+		k = Tagged{Tag: TagMerge, V: k}
+	}
+
+	if rapid.IntRange(0, mergeAnchorOdds).Draw(a.t, "mergekeyanchor") == 0 {
+		a.n++
+		k = Anchored{Name: fmt.Sprintf("a%d", a.n), V: k}
+	}
+
+	return k
+}
+
+// mergeValue gives a "<<" value written in place a tag one time in
+// mergeTagOdds, and an anchor one time in mergeTagOdds. An alias takes neither:
+// YAML gives an alias no properties.
+//
+// An anchored value joins the pool, so a later node may alias the mapping a
+// merge brought in. go-yaml fixed a tagged, an anchored and an aliased "<<"
+// value in ToJSON (ffd93027), and a tag on a merge value (3c89f48a).
+func (a *aliaser) mergeValue(v Value) Value {
+	var tag string
+
+	switch v.(type) {
+	case Map:
+		tag = TagMap
+	case Seq:
+		tag = TagSeq
+	default:
+		return v
+	}
+
+	if rapid.IntRange(0, mergeTagOdds).Draw(a.t, "mergevaluetag") == 0 {
+		v = Tagged{Tag: tag, V: v}
+	}
+
+	if rapid.IntRange(0, mergeTagOdds).Draw(a.t, "mergevalueanchor") == 0 {
+		a.n++
+		anchored := Anchored{Name: fmt.Sprintf("a%d", a.n), V: v}
+		a.pool = append(a.pool, anchored)
+
+		return anchored
+	}
+
+	return v
+}
+
+// mergeTagOdds and mergeAnchorOdds are one in N, over the "<<" entries drawn.
+const (
+	mergeTagOdds    = 2
+	mergeAnchorOdds = 3
+)
 
 // mergeFrom draws one mapping for a "<<" to merge: an alias to an anchored one
 // where the pool has any, and a small mapping written in place otherwise.
@@ -1193,7 +1362,7 @@ func (a *aliaser) merge(pairs []Pair, from []Anchored) []Pair {
 // collide and the precedence rule decides the value. Naming them "merged0" to
 // "merged3" alone never collided with anything Strings() draws.
 func (a *aliaser) mergeFrom(from []Anchored, own []Pair) Value {
-	if len(from) > 0 && rapid.Bool().Draw(a.t, "mergealias") {
+	if len(from) > 0 && rapid.IntRange(0, 3).Draw(a.t, "mergealias") != 0 {
 		return Alias(rapid.SampledFrom(from).Draw(a.t, "mergefrom"))
 	}
 
@@ -1333,6 +1502,16 @@ func drawTime(t *rapid.T) time.Time {
 	)
 
 	return time.Date(year, time.Month(month), day, hour, minute, sec, hundreds*int(10*time.Millisecond), time.UTC)
+}
+
+// drawTimeOfDay draws a UTC instant that is not at midnight, so that a timestamp written with a clock has one.
+func drawTimeOfDay(t *rapid.T) time.Time {
+	v := drawTime(t)
+	if v.Equal(v.Truncate(24 * time.Hour)) {
+		v = v.Add(time.Duration(rapid.IntRange(1, 86399).Draw(t, "clock")) * time.Second)
+	}
+
+	return v
 }
 
 func drawSeq(t *rapid.T, depth int) Value {

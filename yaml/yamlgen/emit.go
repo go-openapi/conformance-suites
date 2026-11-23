@@ -1013,7 +1013,12 @@ func (e *emitter) simpleScalar(v Value, flow bool, tag string) string {
 	case Int:
 		e.feat.add(FeaturePlain)
 
-		return e.number(intText(n.V, e.st, tag))
+		text, form := intText(n.V, e.st, tag)
+		if tag == TagInt {
+			e.reads.sawTaggedInt(text)
+		}
+
+		return e.number(text, form)
 	case BigInt:
 		e.feat.add(FeaturePlain)
 		e.feat.add(FeatureValueBigInt)

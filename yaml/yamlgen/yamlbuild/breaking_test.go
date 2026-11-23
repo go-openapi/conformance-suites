@@ -190,7 +190,7 @@ func TestABreakIsNotAByteMutation(t *testing.T) {
 // mapHoldsAMergeKey reports whether a mapping holds a "<<" entry.
 func mapHoldsAMergeKey(m yamlgen.Map) bool {
 	for _, p := range m.Pairs {
-		if _, isMerge := p.Key.(yamlgen.MergeKey); isMerge {
+		if yamlgen.IsMergeKey(p.Key) {
 			return true
 		}
 	}

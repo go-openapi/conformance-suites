@@ -21,7 +21,7 @@ import (
 
 // Generator names what produced a corpus, so a change here is as visible in an
 // artifact's header as a change to the grammar.
-const Generator = "yamlcorpus/47"
+const Generator = "yamlcorpus/48"
 
 // Build is the recipe for a corpus: how much to draw, and how much to keep.
 type Build struct {
@@ -268,10 +268,13 @@ func meaningOfEntry(e Entry, wellFormed bool) *suite.Meaning {
 // stance.Table.Reads looks in one place. Where every reading agrees there is
 // nothing to choose between and the single Meaning says it.
 func readingsOfEntry(e Entry, core *suite.Meaning) []suite.Meaning {
-	if core == nil || len(e.Readings) == 0 {
+	if core == nil || (len(e.Readings) == 0 && len(e.Refused) == 0) {
 		return nil
 	}
 
+	// The core answer alone, where a reading refuses the document: Meanings
+	// present and holding no entry for a reading is how suite.MeaningFor
+	// says that reading has no answer.
 	out := []suite.Meaning{*core}
 
 	for _, name := range slices.Sorted(maps.Keys(e.Readings)) {

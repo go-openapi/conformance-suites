@@ -169,6 +169,9 @@ type readings struct {
 	// merged records a "<<" entry, which the two readings disagree about the
 	// way they disagree about "yes". See sawMergeKey.
 	merged bool
+	// refused11 records an "!!int" written over a text YAML 1.1 does not read
+	// as an integer, which a 1.1 reader refuses. See sawTaggedInt.
+	refused11 bool
 }
 
 // numberUnder11 reports whether YAML 1.1 reads this text as the number the core
@@ -290,6 +293,23 @@ func valueUnder11(text string) (uint64, bool) {
 // Its text comes from big.Float.Text('g', -1), which writes "1e+330" -- an
 // exponent with no '.' before it, which 1.1 reads as a string. The text is the
 // only thing that decides.
+// sawTaggedInt records an integer written under "!!int", where 1.1 refuses a
+// text it does not read as one.
+//
+// "!!int 0o143" is 99 under the core schema, and under 1.1 the tag names a type
+// the text is not -- 1.1 has no "0o" -- so a 1.1 reader refuses the document, as
+// it refuses "!!int 08". A refused value takes precedence over the tag
+// (Fred, 2026-09-09), so the 1.1 reading has no answer to state. intText keeps
+// such a spelling out of a document declaring "%YAML 1.1"; one declaring
+// nothing is still read under 1.1 by a consumer asking for that reading.
+func (r *readings) sawTaggedInt(text string) {
+	if r == nil || numberUnder11(text) {
+		return
+	}
+
+	r.refused11 = true
+}
+
 func (r *readings) sawNumber(text string) {
 	if r == nil {
 		return
@@ -630,7 +650,7 @@ func (r *readings) legacyMap(m Map) any {
 	var merged []any
 
 	for _, p := range m.Pairs {
-		if _, isMerge := p.Key.(MergeKey); isMerge {
+		if IsMergeKey(p.Key) {
 			merged = append(merged, r.mergedMappings(p.Val)...)
 
 			continue
@@ -680,6 +700,22 @@ func (r *readings) legacyOrderedMap(v Value) (OrderedMap, bool) {
 		if !isMap || len(m.Pairs) != 1 {
 			return OrderedMap{}, false
 		}
+
+		if IsMergeKey(m.Pairs[0].Key) {
+			// "- <<: *m" is an entry whose one key is the merged mapping's,
+			// under 1.1: the merge runs first, and the entry it leaves must
+			// hold one key, as every "!!omap" entry does. go-yaml records what
+			// a "<<" brings into an entry as its key since a5a4cc89.
+			key, value, one := oneEntry(r.legacyMap(m))
+			if !one {
+				return OrderedMap{}, false
+			}
+
+			items = append(items, OrderedEntry{Key: key, Value: value})
+
+			continue
+		}
+
 		items = append(items, OrderedEntry{
 			Key:   r.legacyKeyValue(m.Pairs[0].Key),
 			Value: r.legacy(m.Pairs[0].Val),
@@ -687,4 +723,16 @@ func (r *readings) legacyOrderedMap(v Value) (OrderedMap, bool) {
 	}
 
 	return newOrderedMap(items)
+}
+
+// oneEntry returns the key and the value of a mapping holding exactly one entry.
+func oneEntry(m any) (key, value any, one bool) {
+	n := 0
+
+	eachEntry(m, func(k, v any) {
+		key, value = k, v
+		n++
+	})
+
+	return key, value, n == 1
 }

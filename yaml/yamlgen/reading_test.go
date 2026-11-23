@@ -146,7 +146,7 @@ func holdsAMergeKey(v yamlgen.Value) bool {
 	switch n := v.(type) {
 	case yamlgen.Map:
 		for _, p := range n.Pairs {
-			if _, isMerge := p.Key.(yamlgen.MergeKey); isMerge {
+			if yamlgen.IsMergeKey(p.Key) {
 				return true
 			}
 

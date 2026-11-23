@@ -72,6 +72,9 @@ type Entry struct {
 	// Value.Decoded() for one that declares none. Nil where the generator will
 	// not say -- see yamlgen.Written.MeansUnclear.
 	Means any
+	// Refused names the readings that refuse the document. See
+	// yamlgen.Written.Refused.
+	Refused []string
 	// MeansUnclear says the generator declined to state a meaning, as opposed
 	// to an entry that simply carries none.
 	//
@@ -132,6 +135,7 @@ func Generate(seed uint64, documents, mutantsEach int) []Entry {
 			Value:        value,
 			Features:     written.Features,
 			Readings:     written.Readings,
+			Refused:      written.Refused,
 			Means:        meansOf(written),
 			MeansUnclear: written.MeansUnclear,
 		})

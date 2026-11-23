@@ -34,7 +34,7 @@ func TestAMergeSharesAKeyWithWhatItMerges(t *testing.T) {
 			var merged []yamlgen.Value
 
 			for _, p := range m.Pairs {
-				if _, isMerge := p.Key.(yamlgen.MergeKey); isMerge {
+				if yamlgen.IsMergeKey(p.Key) {
 					merged = append(merged, p.Val)
 
 					continue
@@ -91,7 +91,7 @@ func TestAMergeSequenceSharesAKeyBetweenItsMappings(t *testing.T) {
 	for i := range 2000 {
 		walkMappings(values.Example(i), func(m yamlgen.Map) {
 			for _, p := range m.Pairs {
-				if _, isMerge := p.Key.(yamlgen.MergeKey); !isMerge {
+				if !yamlgen.IsMergeKey(p.Key) {
 					continue
 				}
 
