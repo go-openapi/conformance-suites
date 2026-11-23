@@ -900,7 +900,17 @@ func (e *emitter) keyRunsIntoTheColon(k Value) bool {
 // canPlain's refusal of every numeric spelling load-bearing rather than merely
 // conservative: Str{"1"} has to reach the document quoted or it resolves to the
 // integer and becomes a different key.
-func (e *emitter) keyIn(k Value, flow bool) string {
+func (e *emitter) keyIn(k Value, flow bool) string { return e.keyWith(k, flow, "") }
+
+// keyWith writes a mapping key whose tag, written in front of it, is tag, or ""
+// where none is.
+//
+// The tag reaches the scalar as it does for a value. An integer under "!!int"
+// keeps off a spelling that names another type, as intText does for a value,
+// and a tagged string is not a spelling 1.1 resolves, so sawScalar is not told
+// of it. keyIn dropped the tag along with the anchor, which was harmless while
+// keys were never tagged.
+func (e *emitter) keyWith(k Value, flow bool, tag string) string {
 	if _, isMerge := k.(MergeKey); isMerge {
 		// Bare, always. Quoted it would be an ordinary key and the document
 		// would no longer hold a merge, which is the one thing this construct
@@ -946,7 +956,7 @@ func (e *emitter) keyIn(k Value, flow bool) string {
 		// hold a ':'.
 		p, node := strip(k)
 
-		inner := e.keyIn(node, flow)
+		inner := e.keyWith(node, flow, p.tag)
 		if inner == "" {
 			return e.propText(p)
 		}
@@ -959,14 +969,16 @@ func (e *emitter) keyIn(k Value, flow bool) string {
 		// Null, Bool, Int and Float, whose spelling has no choices beyond the
 		// ones Style names. A Null key under the empty spelling writes nothing
 		// at all, which is the ": a" shape.
-		return e.simpleScalar(k, flow, "")
+		return e.simpleScalar(k, flow, tag)
 	}
 
 	// Deliberately not inline(): a key is written on the line that introduces
 	// the entry, so it can never be a block scalar however Style.Literal is
 	// set.
-	out := e.scalarString(s.V, flow, false)
-	e.reads.sawScalar(s.V, out == s.V)
+	out := e.scalarString(s.V, flow, tag == TagStr)
+	if tag == "" {
+		e.reads.sawScalar(s.V, out == s.V)
+	}
 
 	return out
 }
