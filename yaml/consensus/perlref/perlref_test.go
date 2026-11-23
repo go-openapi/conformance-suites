@@ -95,3 +95,20 @@ func TestARefusalKeepsWhatItManaged(t *testing.T) {
 	assert.False(t, ok, "a mis-indented mapping is not a document")
 	assert.NotEmpty(t, events, "and the events up to the fault are the useful part")
 }
+
+// TestADocumentLineIsNoEvent parses documents whose lines look like events. The report echoes the document before
+// its events, and "- a: 1" was read as an event, so two documents differing only in such a line had different streams.
+func TestADocumentLineIsNoEvent(t *testing.T) {
+	needs(t)
+
+	for src, want := range map[string][]string{
+		"- a: 1\n":     {"+STR", "+DOC", "+SEQ", "+MAP", "=VAL :a", "=VAL :1", "-MAP", "-SEQ", "-DOC", "-STR"},
+		"- +b\n- =c\n": {"+STR", "+DOC", "+SEQ", "=VAL :+b", "=VAL :=c", "-SEQ", "-DOC", "-STR"},
+		"- x\n":        {"+STR", "+DOC", "+SEQ", "=VAL :x", "-SEQ", "-DOC", "-STR"},
+	} {
+		events, ok, err := perlref.Events([]byte(src))
+		require.NoError(t, err, "%q", src)
+		require.True(t, ok, "%q", src)
+		assert.Equal(t, want, events, "%q", src)
+	}
+}

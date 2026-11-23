@@ -114,33 +114,61 @@ func Events(src []byte) (events []string, ok bool, err error) {
 		}
 	}
 
-	return parse(out.String())
+	return parse(out.String(), string(src))
 }
 
-// parse reads the parser's report: a PASS or FAIL line naming the document,
-// then the events, then a timing line this package has no use for.
-func parse(out string) ([]string, bool, error) {
-	var (
-		events []string
-		seen   bool
-		ok     bool
-	)
+// parse reads the parser's report on src: a PASS or FAIL line that also echoes the document, then the events, then
+// a timing line this package has no use for.
+//
+// The echo runs from the "'" after "PASS - " to a "'" at its end, and src lines starting with "-", "+" or "=" look
+// like events. Read as events, a document holding "- a: 1" gave the event "- a: 1", and two documents differing only
+// in such a line had different streams. The echo is skipped by its length when it holds src exactly, and otherwise
+// only the lines after its closing "'" are read.
+func parse(out, src string) ([]string, bool, error) {
+	var ok bool
+
+	switch {
+	case strings.HasPrefix(out, "PASS - '"):
+		ok, out = true, out[len("PASS - '"):]
+	case strings.HasPrefix(out, "FAIL - '"):
+		out = out[len("FAIL - '"):]
+	default:
+		// A message may stand before the verdict, as "Parser finished before end of input" does on a refusal.
+		pass, fail := strings.Index(out, "\nPASS - '"), strings.Index(out, "\nFAIL - '")
+		switch {
+		case pass >= 0 && (fail < 0 || pass < fail):
+			ok, out = true, out[pass+len("\nPASS - '"):]
+		case fail >= 0:
+			out = out[fail+len("\nFAIL - '"):]
+		default:
+			return nil, false, fmt.Errorf("perlref: no PASS or FAIL in its report: %q", out)
+		}
+	}
+
+	if strings.HasPrefix(out, src+"'") {
+		out = out[len(src)+1:]
+	} else if i := strings.Index(out, "'\n+STR"); i >= 0 {
+		out = out[i+1:]
+	}
+
+	var events []string
 
 	for line := range strings.SplitSeq(out, "\n") {
-		switch {
-		case strings.HasPrefix(line, "PASS"):
-			seen, ok = true, true
-		case strings.HasPrefix(line, "FAIL"):
-			seen, ok = true, false
-		case strings.HasPrefix(line, "+") || strings.HasPrefix(line, "-") ||
-			strings.HasPrefix(line, "="):
+		if isEvent(line) {
 			events = append(events, line)
 		}
 	}
 
-	if !seen {
-		return nil, false, fmt.Errorf("perlref: no PASS or FAIL in its report: %q", out)
+	return events, ok, nil
+}
+
+// isEvent reports whether line is one of the YAML Test Suite's events: "+STR", "-DOC ...", "=VAL :a", "=ALI *a".
+func isEvent(line string) bool {
+	for _, kind := range []string{"+STR", "-STR", "+DOC", "-DOC", "+MAP", "-MAP", "+SEQ", "-SEQ", "=VAL", "=ALI"} {
+		if line == kind || strings.HasPrefix(line, kind+" ") {
+			return true
+		}
 	}
 
-	return events, ok, nil
+	return false
 }
