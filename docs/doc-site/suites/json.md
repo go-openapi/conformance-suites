@@ -23,6 +23,9 @@ This page is an outline. The structure is up for review; the prose is not writte
 - Tags ({{% siteparam "metrics.json_tags" %}}): `number/out-of-range`, `string/lone-surrogate`, `structure/deep-nesting`,
   and the four `encoding/*` tags; link to [Tags](../../reference/tags/)
 - `Normalize`: what a parser may strip before the grammar sees the bytes
+- Calibration against the vendored JSONTestSuite: every `y_` accepted, every `n_` refused, `i_` recorded
+- The census: every construct a valid JSONTestSuite document holds, a drawn or enumerated case holds too;
+  the known gaps and why
 - Corpus counts: compact and full, from `metrics.yaml`
 - `DefaultLexer`: measured, not declared; the two surprises (BOM tolerated, lone surrogate refused)
 - Gaps: duplicate members, number precision, control characters, trailing data, empty input

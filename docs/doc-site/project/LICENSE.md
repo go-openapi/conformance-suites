@@ -212,4 +212,4 @@ description: |
 ## Third-party notices
 
 See [NOTICE](https://github.com/go-openapi/conformance-suites/blob/master/NOTICE): the YAML Test Suite
-fixtures (MIT), and `yaml-spec-1.2.json`, which states no license.
+and JSONTestSuite fixtures (MIT), and `yaml-spec-1.2.json`, which states no license.

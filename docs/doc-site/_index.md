@@ -33,7 +33,7 @@ Then see [Score a parser](./getting-started/score-a-parser/).
 `SPDX-FileCopyrightText: Copyright 2025-2026 go-swagger maintainers`
 
 This library ships under the [Apache-2.0 license](./project/LICENSE.md). The vendored YAML Test Suite
-fixtures ship under the MIT License.
+and JSONTestSuite fixtures ship under the MIT License.
 
 ## Contributing
 
