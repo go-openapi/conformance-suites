@@ -6,7 +6,7 @@
 //
 // # Why a third
 //
-// [github.com/go-openapi/go-yaml/internal/testintegration/libfyaml] is the
+// [github.com/go-openapi/conformance-suites/yaml/consensus/libfyaml] is the
 // yardstick: a separate implementation, in C, by the author of the
 // specification's own test suite. Where it and this library agree, a stated
 // meaning rests on two readings. Where they disagree, two readings settle
@@ -46,7 +46,7 @@
 // first kind as construction would have dismissed a real disagreement about
 // 7.4.2. Quote the message into the entry that rests on it.
 //
-// Ask [github.com/go-openapi/go-yaml/internal/testintegration/perlref] when the
+// Ask [github.com/go-openapi/conformance-suites/yaml/consensus/perlref] when the
 // question is whether a document is YAML at all. It emits events, resolves
 // nothing and builds nothing, so it cannot make either mistake.
 package goyaml

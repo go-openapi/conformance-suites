@@ -26,8 +26,8 @@
 // It has no schema, builds no values and answers no question about what a
 // scalar means. Asking it whether "1.0" is a float is asking the wrong source.
 //
-// [libfyaml]: https://pkg.go.dev/github.com/go-openapi/go-yaml/internal/testintegration/libfyaml
-// [goyaml]: https://pkg.go.dev/github.com/go-openapi/go-yaml/internal/testintegration/goyaml
+// [libfyaml]: https://pkg.go.dev/github.com/go-openapi/conformance-suites/yaml/consensus/libfyaml
+// [goyaml]: https://pkg.go.dev/github.com/go-openapi/conformance-suites/yaml/consensus/goyaml
 package perlref
 
 import (

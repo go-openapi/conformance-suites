@@ -1,0 +1,5 @@
+agents
+commands
+hooks
+plans
+*.lock

@@ -64,7 +64,7 @@
 // The other tell is a tag whose type cannot be built from its content:
 // "{a: !!bool &x}" is refused here because no boolean comes from an empty node,
 // and "{a: !!str &x}" reads. Ask with `!!str` when the question is syntax, or
-// ask [github.com/go-openapi/go-yaml/internal/testintegration/perlref], which
+// ask [github.com/go-openapi/conformance-suites/yaml/consensus/perlref], which
 // builds nothing and so cannot make either mistake.
 package libfyaml
 
