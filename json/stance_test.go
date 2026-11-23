@@ -4,8 +4,6 @@
 package jsoncorpus_test
 
 import (
-	"os"
-	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -74,32 +72,15 @@ var measuredDefaultLexer = map[string]stance.Outcome{
 // tags plus a stance really do reconstruct a parser's behavior -- and this is
 // where that gets checked against a parser we have.
 func TestTheStanceDescribesTheRealLexer(t *testing.T) {
-	dir := suiteDir(t)
-
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatalf("cannot read the suite: %v", err)
-	}
-
 	var (
 		docs           []stance.Doc
 		wrong, unknown []string
 		scored         int
 	)
 
-	for _, e := range entries {
-		name := e.Name()
-		if e.IsDir() || !strings.HasSuffix(name, ".json") {
-			continue
-		}
-
-		src, rerr := os.ReadFile(filepath.Join(dir, name))
-		if rerr != nil {
-			t.Fatalf("cannot read %s: %v", name, rerr)
-		}
-
-		short := strings.TrimSuffix(name, ".json")
-		doc := jsoncorpus.Describe(short, src)
+	for _, c := range suiteCases(t) {
+		short := c.Name
+		doc := jsoncorpus.Describe(short, c.Src)
 		docs = append(docs, doc)
 
 		want, ok := realBehaviour(short)

@@ -4,14 +4,12 @@
 package jsoncorpus_test
 
 import (
-	"os"
-	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/go-openapi/conformance-suites/internal/jsontestsuite"
 	jsoncorpus "github.com/go-openapi/conformance-suites/json"
 )
 
@@ -30,47 +28,30 @@ import (
 //   - n_*  must be rejected
 //   - i_*  implementation-defined, so recorded and never asserted
 func TestRecognizerAgreesWithJSONTestSuite(t *testing.T) {
-	dir := suiteDir(t)
-
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatalf("cannot read the suite: %v", err)
-	}
-
 	var (
 		yes, no, impl int
 		disagreements []string
 		implAccepted  []string
 	)
 
-	for _, e := range entries {
-		name := e.Name()
-		if e.IsDir() || !strings.HasSuffix(name, ".json") {
-			continue
-		}
+	for _, c := range suiteCases(t) {
+		got := jsoncorpus.Text(c.Src).OK
 
-		src, rerr := os.ReadFile(filepath.Join(dir, name))
-		if rerr != nil {
-			t.Fatalf("cannot read %s: %v", name, rerr)
-		}
-
-		got := jsoncorpus.Text(src).OK
-
-		switch {
-		case strings.HasPrefix(name, "y_"):
+		switch c.Expect {
+		case jsontestsuite.Accept:
 			yes++
 			if !got {
-				disagreements = append(disagreements, "refused a valid document: "+name+" -- "+excerpt(src))
+				disagreements = append(disagreements, "refused a valid document: "+c.Name+" -- "+excerpt(c.Src))
 			}
-		case strings.HasPrefix(name, "n_"):
+		case jsontestsuite.Reject:
 			no++
 			if got {
-				disagreements = append(disagreements, "accepted an invalid document: "+name+" -- "+excerpt(src))
+				disagreements = append(disagreements, "accepted an invalid document: "+c.Name+" -- "+excerpt(c.Src))
 			}
-		default:
+		default: // jsontestsuite.Either
 			impl++
 			if got {
-				implAccepted = append(implAccepted, name)
+				implAccepted = append(implAccepted, c.Name)
 			}
 		}
 	}
@@ -105,34 +86,14 @@ func excerpt(src []byte) string {
 	return strconv.Quote(s)
 }
 
-// suiteDir finds the vendored JSONTestSuite.
-//
-// The suite lives in a sibling repository rather than here: it is 1.6MB, and a
-// spike should not vendor it a second time. JSONTESTSUITE names it outright;
-// otherwise the go-openapi checkout root is found by walking up from this file
-// and the sibling is taken from there.
-func suiteDir(t *testing.T) string {
+// suiteCases reads the vendored JSONTestSuite, in name order.
+func suiteCases(t *testing.T) []jsontestsuite.Case {
 	t.Helper()
 
-	const under = "core/json/lexers/testdata/JSONTestSuite/test_parsing"
-
-	if named := os.Getenv("JSONTESTSUITE"); named != "" {
-		return named
+	cases, err := jsontestsuite.Cases()
+	if err != nil {
+		t.Fatalf("cannot read the suite: %v", err)
 	}
 
-	_, self, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Skip("cannot locate this file, so cannot find the suite; set JSONTESTSUITE")
-	}
-
-	for at := filepath.Dir(self); at != "/" && at != "."; at = filepath.Dir(at) {
-		candidate := filepath.Join(at, under)
-		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-			return candidate
-		}
-	}
-
-	t.Skipf("no %s above %s; set JSONTESTSUITE to score the recognizer", under, self)
-
-	return ""
+	return cases
 }

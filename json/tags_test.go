@@ -4,8 +4,6 @@
 package jsoncorpus_test
 
 import (
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -86,29 +84,11 @@ func join(tags []stance.Tag) string {
 	return strings.Join(out, " ")
 }
 
-// forEachFixture runs over every document in the suite, skipping the whole
-// suite if the sibling checkout holding it is not there.
+// forEachFixture runs over every document in the suite.
 func forEachFixture(t *testing.T, each func(t *testing.T, short string, src []byte)) {
 	t.Helper()
 
-	dir := suiteDir(t)
-
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatalf("cannot read the suite: %v", err)
-	}
-
-	for _, e := range entries {
-		name := e.Name()
-		if e.IsDir() || !strings.HasSuffix(name, ".json") {
-			continue
-		}
-
-		src, rerr := os.ReadFile(filepath.Join(dir, name))
-		if rerr != nil {
-			t.Fatalf("cannot read %s: %v", name, rerr)
-		}
-
-		each(t, strings.TrimSuffix(name, ".json"), src)
+	for _, c := range suiteCases(t) {
+		each(t, c.Name, c.Src)
 	}
 }
