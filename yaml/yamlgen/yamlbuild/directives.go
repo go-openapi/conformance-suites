@@ -3,9 +3,7 @@
 
 package yamlbuild
 
-import (
-	"github.com/go-openapi/conformance-suites/stance"
-)
+import "github.com/go-openapi/conformance-suites/stance"
 
 // Directives: the prelude, and the four separate errors the spec states about
 // it.
