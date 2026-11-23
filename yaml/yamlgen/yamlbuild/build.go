@@ -104,7 +104,7 @@ func (b Build) Write(w io.Writer) error {
 		Tier:      b.Tier,
 		Cases:     len(cases),
 		Vocabulary: suite.SpecsFor(
-			vocabularyOf(cases), Vocabulary(), allRules()),
+			vocabularyOf(cases), Vocabulary(), AllRules()),
 		Features: featuresOf(cases),
 		// Every reading readingsOfEntry and readingsOfResolution consult. The
 		// JSON schema is deliberately absent -- see schema.go.
@@ -608,8 +608,8 @@ func verdictAt(e Entry) string {
 	return stance.Parse.String()
 }
 
-// allRules is everything the specification settles that this corpus can label.
-func allRules() stance.Rules {
+// AllRules returns everything the specification settles that this corpus can label.
+func AllRules() stance.Rules {
 	out := AnchorRules()
 	out = append(out, TagRules()...)
 	out = append(out, KeyRules()...)
