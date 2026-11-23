@@ -20,7 +20,7 @@ import (
 // Bump it when the documents a seed produces change. A corpus whose generator
 // string no longer matches is not regenerable and has to be rebuilt rather
 // than diffed.
-const Generator = "jsoncorpus/2"
+const Generator = "jsoncorpus/3"
 
 // Build is the recipe for a corpus: how much to generate, and how much of it
 // to keep.
@@ -121,6 +121,19 @@ func (b Build) cases() []suite.Case {
 		doc := Describe(shape.Name, shape.Src)
 		out = append(out, suite.Case{
 			Name:       "shape/encoding/" + shape.Name,
+			Src:        doc.Src,
+			WellFormed: doc.WellFormed,
+			Opaque:     doc.Opaque,
+			Tags:       tagNames(doc.Tags),
+			VerdictAt:  stance.Construct.String(),
+			Origin:     suite.Origin{Document: i, Mutation: "enumerated"},
+		})
+	}
+
+	for i, shape := range ValueShapes() {
+		doc := Describe(shape.Name, shape.Src)
+		out = append(out, suite.Case{
+			Name:       "shape/value/" + shape.Name,
 			Src:        doc.Src,
 			WellFormed: doc.WellFormed,
 			Opaque:     doc.Opaque,

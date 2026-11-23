@@ -102,6 +102,13 @@ type Style struct {
 	// EscapeSolidus writes "/" as "\/", which JSON permits and nothing
 	// requires.
 	EscapeSolidus bool
+	// ShortEscapes writes U+0008 and U+000C as "\b" and "\f". Without it they
+	// take the \u form, as every other character below U+0020 does.
+	ShortEscapes bool
+	// Before and After are the whitespace written around the top value. RFC
+	// 8259 allows ws on both sides of it, and a parser that reads only up to
+	// the value's end accepts trailing bytes it should refuse.
+	Before, After string
 }
 
 // Emit writes a Value in a Style.
@@ -113,7 +120,9 @@ type Style struct {
 func Emit(v Value, s Style) []byte {
 	var b strings.Builder
 
+	b.WriteString(s.Before)
 	emitValue(&b, v, s, 0)
+	b.WriteString(s.After)
 
 	return []byte(b.String())
 }
@@ -206,6 +215,10 @@ func writeString(b *strings.Builder, v string, s Style) {
 			b.WriteString(`\t`)
 		case r == '\r':
 			b.WriteString(`\r`)
+		case r == '\b' && s.ShortEscapes:
+			b.WriteString(`\b`)
+		case r == '\f' && s.ShortEscapes:
+			b.WriteString(`\f`)
 		case r < 0x20, r > 0x7E && s.EscapeNonASCII:
 			writeEscape(b, r)
 		default:
@@ -245,6 +258,14 @@ func pad4(v uint32) string {
 // it can produce are the shapes RFC 8259 defines, weighted so that a document
 // of a useful size comes out rather than one scalar or a thousand.
 func RandomValue(rng *rand.Rand, depth int) Value {
+	// One document in sixteen is a deep chain: 9 to 24 collections, each the
+	// only content of the one around it. Drawn collections stop at depth 3, so
+	// nothing else nests past a few levels. The chain stays far below
+	// deepEnough, so it carries no tag.
+	if depth == 0 && rng.IntN(16) == 0 {
+		return chain(rng, 9+rng.IntN(16), RandomValue(rng, 3))
+	}
+
 	// Past a few levels the collections stop being drawn, so recursion ends.
 	kinds := 4
 	if depth < 3 {
@@ -297,8 +318,24 @@ func dedupe(members []Member) Obj {
 	return Obj{Members: out}
 }
 
+// chain wraps v in n collections, each the only content of the one around it,
+// arrays and objects drawn at each level.
+func chain(rng *rand.Rand, n int, v Value) Value {
+	for range n {
+		if rng.IntN(2) == 0 {
+			v = Arr{Items: []Value{v}}
+
+			continue
+		}
+
+		v = Obj{Members: []Member{{Name: randomString(rng), Val: v}}}
+	}
+
+	return v
+}
+
 // randomNumber spells a number every way the grammar allows, including the
-// magnitudes float64 cannot carry.
+// magnitudes float64 cannot carry and more digits than it can hold.
 func randomNumber(rng *rand.Rand) string {
 	var b strings.Builder
 
@@ -306,12 +343,21 @@ func randomNumber(rng *rand.Rand) string {
 		b.WriteByte('-')
 	}
 
+	// One in twelve takes 18 to 25 digits, past the 17 that round-trip a
+	// float64. An integer that long overflows int64 too, past 19 digits.
+	long := rng.IntN(12) == 0
+
 	if rng.IntN(4) == 0 {
 		b.WriteByte('0')
 	} else {
 		b.WriteByte(byte('1' + rng.IntN(9)))
 
-		for range rng.IntN(4) {
+		more := rng.IntN(4)
+		if long {
+			more = 17 + rng.IntN(8)
+		}
+
+		for range more {
 			b.WriteByte(byte('0' + rng.IntN(10)))
 		}
 	}
@@ -319,7 +365,12 @@ func randomNumber(rng *rand.Rand) string {
 	if rng.IntN(3) == 0 {
 		b.WriteByte('.')
 
-		for range 1 + rng.IntN(3) {
+		digits := 1 + rng.IntN(3)
+		if long {
+			digits = 18 + rng.IntN(8)
+		}
+
+		for range digits {
 			b.WriteByte(byte('0' + rng.IntN(10)))
 		}
 	}
@@ -342,7 +393,7 @@ func randomNumber(rng *rand.Rand) string {
 func randomString(rng *rand.Rand) string {
 	alphabet := []rune{
 		'a', 'b', 'z', 'A', 'Z', '0', '9', ' ', '-', '_', '/',
-		'"', '\\', '\n', '\t', '\r', 0x00, 0x1F,
+		'"', '\\', '\n', '\t', '\r', '\b', '\f', 0x00, 0x1F,
 		'é', 'ß', '☃', 0xFEFF, 0x1D11E, 0x10FFFF,
 	}
 
@@ -356,11 +407,16 @@ func randomString(rng *rand.Rand) string {
 
 // RandomStyle draws a presentation.
 func RandomStyle(rng *rand.Rand) Style {
+	around := []string{"", "", "", " ", "\n", "\t", "\r\n"}
+
 	return Style{
 		Indent:          []int{0, 0, 1, 2, 4}[rng.IntN(5)],
 		SpaceAfterName:  rng.IntN(2) == 0,
 		SpaceAfterComma: rng.IntN(2) == 0,
 		EscapeNonASCII:  rng.IntN(2) == 0,
 		EscapeSolidus:   rng.IntN(4) == 0,
+		ShortEscapes:    rng.IntN(2) == 0,
+		Before:          around[rng.IntN(len(around))],
+		After:           around[rng.IntN(len(around))],
 	}
 }

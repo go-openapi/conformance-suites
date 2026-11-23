@@ -41,8 +41,8 @@ func TestEveryImplementationDefinedCaseIsTagged(t *testing.T) {
 // corpus that looks complete and is not.
 //
 // The cases listed here really do carry what they are tagged with -- ill-formed
-// UTF-8, or a byte order mark -- so the tag is right and the suite's insistence
-// on rejection is a stricter position than the tag alone implies.
+// UTF-8, a byte order mark, or a duplicate name -- so the tag is right and the
+// suite's verdict is one position the tag allows, not the only one.
 func TestNoSettledCaseIsTaggedWithoutCause(t *testing.T) {
 	expected := map[string]bool{
 		"n_array_a_invalid_utf8": true, "n_array_invalid_utf8": true,
@@ -55,6 +55,14 @@ func TestNoSettledCaseIsTaggedWithoutCause(t *testing.T) {
 		"n_structure_incomplete_UTF8_BOM":                           true,
 		"n_structure_lone-invalid-utf-8":                            true,
 		"n_structure_single_eacute":                                 true,
+
+		// Two members of one name. RFC 8259 section 4 calls the behavior of a
+		// receiver unpredictable and notes that many report an error, so a
+		// decoder refusing them conforms, and the suite's "y_" is the more
+		// permissive of two conforming positions. The tag sits at Compose, so
+		// a table stopping at Parse still scores both on the grammar's verdict.
+		"y_object_duplicated_key":           true,
+		"y_object_duplicated_key_and_value": true,
 	}
 
 	var unexpected []string

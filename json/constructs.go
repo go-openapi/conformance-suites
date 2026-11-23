@@ -5,6 +5,7 @@ package jsoncorpus
 
 import (
 	"strings"
+	"unicode/utf16"
 	"unicode/utf8"
 )
 
@@ -290,19 +291,23 @@ func (x *lexer) word(i int) int {
 	return x.scalar(end)
 }
 
-// str reads the string starting at the quote at i, and returns its text with escapes left as written and the offset
-// past its closing quote.
+// str reads the string starting at the quote at i, and returns a key for its value and the offset past its closing
+// quote. Two strings have equal keys exactly when they denote the same code units; an empty string has an empty key.
 func (l *lexed) str(s string, i int) (string, int) {
 	j := i + 1
 
-	var text strings.Builder
+	// The string's value, as UTF-16 code units, so that two spellings of one
+	// name compare equal: "a" and "a" are the same name. Code units and
+	// not runes, because a lone surrogate has no rune, and two different ones
+	// would both decode to U+FFFD.
+	var units []uint16
 
 	for j < len(s) {
 		c := s[j]
 
 		switch {
 		case c == '"':
-			return text.String(), j + 1
+			return unitsKey(units), j + 1
 
 		case c == '\\' && j+1 < len(s):
 			e := s[j+1]
@@ -311,30 +316,67 @@ func (l *lexed) str(s string, i int) (string, int) {
 			if e == 'u' && j+6 <= len(s) {
 				hex := s[j+2 : j+6]
 				l.unicodeEscape(s, j, hex)
-				text.WriteString(s[j : j+6])
+
+				if v, ok := hexValue(hex); ok {
+					units = append(units, uint16(v)) // four hex digits fit in 16 bits
+				}
+
 				j += 6
 
 				continue
 			}
 
-			text.WriteString(s[j : j+2])
+			units = append(units, uint16(shortEscape(e)))
 			j += 2
 
 		case c >= utf8.RuneSelf:
-			if r, size := utf8.DecodeRuneInString(s[j:]); r != utf8.RuneError || size > 1 {
+			r, size := utf8.DecodeRuneInString(s[j:])
+			if r != utf8.RuneError || size > 1 {
 				l.rawNonASCII = true
 			}
 
-			text.WriteByte(c)
-			j++
+			units = utf16.AppendRune(units, r)
+			j += size
 
 		default:
-			text.WriteByte(c)
+			units = append(units, uint16(c))
 			j++
 		}
 	}
 
-	return text.String(), j
+	return unitsKey(units), j
+}
+
+// shortEscape returns the character a two-character escape stands for, or the
+// escaped byte itself where the escape is not JSON.
+func shortEscape(e byte) byte {
+	switch e {
+	case 'b':
+		return '\b'
+	case 'f':
+		return '\f'
+	case 'n':
+		return '\n'
+	case 'r':
+		return '\r'
+	case 't':
+		return '\t'
+	default: // '"', '\\', '/', and bytes no escape names
+		return e
+	}
+}
+
+// unitsKey writes code units as a string that compares equal exactly when the
+// units do.
+func unitsKey(units []uint16) string {
+	var b strings.Builder
+
+	for _, u := range units {
+		b.WriteByte(byte(u >> 8))
+		b.WriteByte(byte(u))
+	}
+
+	return b.String()
 }
 
 // unicodeEscape classifies the \u escape at j, whose four hex digits are hex.

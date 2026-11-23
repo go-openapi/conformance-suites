@@ -20,7 +20,7 @@ This page is an outline. The structure is up for review; the prose is not writte
 
 - The grammar: `jsoncorpus.JSON`, `jsoncorpus.Text`; no patches
 - The generator: `RandomValue`, `RandomStyle`, `Emit`; the {{% siteparam "metrics.json_mutations" %}} mutations
-- Tags ({{% siteparam "metrics.json_tags" %}}): `number/out-of-range`, `string/lone-surrogate`, `structure/deep-nesting`,
+- Tags ({{% siteparam "metrics.json_tags" %}}): `number/out-of-range`, `string/lone-surrogate`, `structure/deep-nesting`, `object/duplicate-name`,
   and the four `encoding/*` tags; link to [Tags](../../reference/tags/)
 - `Normalize`: what a parser may strip before the grammar sees the bytes
 - Calibration against the vendored JSONTestSuite: every `y_` accepted, every `n_` refused, `i_` recorded
@@ -28,4 +28,4 @@ This page is an outline. The structure is up for review; the prose is not writte
   the known gaps and why
 - Corpus counts: compact and full, from `metrics.yaml`
 - `DefaultLexer`: measured, not declared; the two surprises (BOM tolerated, lone surrogate refused)
-- Gaps: duplicate members, number precision, control characters, trailing data, empty input
+- Gaps: number precision, control characters, trailing data, empty input

@@ -36,6 +36,24 @@ func TestEveryEncodingShapeIsTaggedAsItWasMeant(t *testing.T) {
 	}
 }
 
+// TestEveryValueShapeIsTaggedAsItWasMeant holds the hand-written value shapes to the tagger, as the encoding shapes
+// are. Each is grammatical: the question it asks is about its meaning, never its syntax.
+func TestEveryValueShapeIsTaggedAsItWasMeant(t *testing.T) {
+	for _, shape := range jsoncorpus.ValueShapes() {
+		if !jsoncorpus.Text(shape.Src).OK {
+			t.Errorf("%s is not JSON: %s", shape.Name, shape.Src)
+		}
+
+		got := jsoncorpus.Describe(shape.Name, shape.Src).Tags
+
+		for _, want := range shape.Intent {
+			if !slices.Contains(got, want) {
+				t.Errorf("%s was built to exhibit %s, and the tagger reports %v", shape.Name, want, got)
+			}
+		}
+	}
+}
+
 // TestEncodingShapesAreAllDifferent guards the cross-product against
 // collapsing.
 //

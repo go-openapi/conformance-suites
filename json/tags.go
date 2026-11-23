@@ -38,6 +38,11 @@ const (
 	// TagDeepNesting marks a document nested past deepEnough. No specification
 	// sets a limit and every parser has one, whether it says so or not.
 	TagDeepNesting stance.Tag = "structure/deep-nesting"
+	// TagDuplicateName marks an object holding two members of one name. RFC
+	// 8259 section 4 says names SHOULD be unique and calls the behavior of
+	// software receiving such an object unpredictable: it may keep the last,
+	// keep the first, or refuse.
+	TagDuplicateName stance.Tag = "object/duplicate-name"
 )
 
 // deepEnough is where nesting stops being a shape and starts being a resource
@@ -126,6 +131,10 @@ func ValueTags(src []byte) []stance.Tag {
 
 	if depth(src) > deepEnough {
 		tags = append(tags, TagDeepNesting)
+	}
+
+	if lex(src).duplicateName {
+		tags = append(tags, TagDuplicateName)
 	}
 
 	return tags

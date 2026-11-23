@@ -15,19 +15,11 @@ import (
 // knownGaps are the constructs JSONTestSuite has and the corpus cannot hold yet, with why, so that the census fails
 // on a NEW gap and not on the standing ones. Closing one is logged, not failed.
 //
-// All eight were found by the census on the run it was written, 2026-11-23, and each is a limit of the generator.
-var knownGaps = map[string]string{
-	"a duplicate name in one object": "dedupe drops repeated names: their meaning is implementation-defined, " +
-		"and the generator claims to know what its documents mean",
-	"a number of more than 17 digits": "randomNumber writes at most 5 integer digits and 3 fraction digits",
-	`an escaped backspace \b`:         "randomString's alphabet has no U+0008, and writeString has no short escape for it",
-	`an escaped form feed \f`:         "randomString's alphabet has no U+000C, and writeString has no short escape for it",
-	"an escaped lone surrogate": "Str holds a Go string, which cannot hold a lone surrogate; " +
-		"its meaning is implementation-defined (string/lone-surrogate)",
-	"nesting deeper than 8":       "RandomValue stops drawing collections at depth 3",
-	"whitespace before the value": "Emit writes nothing outside the top value, and Style has no axis for it",
-	"whitespace after the value":  "Emit writes nothing outside the top value, and Style has no axis for it",
-}
+// It is empty. The census found eight gaps on the run it was written, 2026-11-23, and the next change closed them:
+// Style.Before and Style.After write whitespace around the value, Style.ShortEscapes writes \b and \f,
+// randomNumber writes more than 17 digits, and RandomValue draws deep chains. Duplicate names and lone surrogates
+// have meanings RFC 8259 leaves open, so ValueShapes writes them by hand, tagged.
+var knownGaps = map[string]string{}
 
 // TestTheGeneratedCorpusIsWiderThanTheSuite is the census.
 //

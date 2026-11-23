@@ -18,7 +18,7 @@ This page is an outline. The structure is up for review; the prose is not writte
 ## Sections
 
 - Shared: `encoding/bom`, `encoding/not-utf8`, `encoding/utf16`, `encoding/utf32`
-- JSON: `number/out-of-range`, `string/lone-surrogate`, `structure/deep-nesting`
+- JSON: `number/out-of-range`, `string/lone-surrogate`, `structure/deep-nesting`, `object/duplicate-name`
 - YAML: after the move
 - One row per tag: name, stage, settled, what exhibits it
 

@@ -91,7 +91,7 @@ var DefaultLexer = stance.Table{
 // Vocabulary places every JSON tag at the stage its question arises.
 //
 // It belongs to the language, so the same map serves the lexer, a decoder, and
-// anybody else's parser. Only two of the six sit past parsing, which is why
+// anybody else's parser. Only two of the eight sit past parsing, which is why
 // JSON needed no stages until YAML made the cost visible: a language whose
 // composing stage is empty can pretend the axis is not there.
 func Vocabulary() stance.Vocabulary {
@@ -118,5 +118,10 @@ func Vocabulary() stance.Vocabulary {
 		// A number's range is a property of the type it is read into, and
 		// nothing before construction has one.
 		TagNumberOutOfRange: stance.Construct,
+
+		// Two members of one name collide when the object is composed into a
+		// mapping, as YAML's duplicate keys do. A lexer can count names, but
+		// RFC 8259 asks nothing of one that does not build an object.
+		TagDuplicateName: stance.Compose,
 	}
 }

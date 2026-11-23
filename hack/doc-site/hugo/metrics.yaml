@@ -13,9 +13,9 @@ params:
         yaml_rules: 211
 
         # JSON suite.
-        json_tags: 7            # 3 JSON tags + 4 encoding tags
+        json_tags: 8            # 4 JSON tags + 4 encoding tags
         json_mutations: 8
-        json_compact_cases: 3039    # re-measured 2026-11-23, after the construct census
-        json_compact_refused: 1323
-        json_full_cases: 154358
-        json_full_size: "2.2 MiB"
+        json_compact_cases: 3921    # re-measured 2026-11-23, after the census gaps closed
+        json_compact_refused: 1331
+        json_full_cases: 144396
+        json_full_size: "2.5 MiB"

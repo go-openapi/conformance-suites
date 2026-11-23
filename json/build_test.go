@@ -193,7 +193,7 @@ func TestTheEnumeratedShapesSurviveMinimizing(t *testing.T) {
 		}
 	}
 
-	if want := len(jsoncorpus.EncodingShapes()); found != want {
+	if want := len(jsoncorpus.EncodingShapes()) + len(jsoncorpus.ValueShapes()); found != want {
 		t.Errorf("%d of %d enumerated shapes are in the corpus", found, want)
 	}
 }

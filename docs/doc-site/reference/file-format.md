@@ -32,16 +32,18 @@ The header of the embedded JSON compact corpus:
   "format": 4,
   "grammar": "RFC 8259",
   "digest": "sha256:ae0322c3aeb0db880dc20a2a5984f4318d59469efe4c5e3b80de5f1314ac584c",
-  "generator": "jsoncorpus/2",
+  "generator": "jsoncorpus/3",
   "seed": 1,
   "tier": "compact",
-  "cases": 3039,
+  "cases": 3921,
   "vocabulary": [
     { "tag": "encoding/bom", "stage": "parse" },
     { "tag": "encoding/not-utf8", "stage": "parse" },
     { "tag": "encoding/utf16", "stage": "parse" },
     { "tag": "encoding/utf32", "stage": "parse" },
-    { "tag": "number/out-of-range", "stage": "construct" }
+    { "tag": "number/out-of-range", "stage": "construct" },
+    { "tag": "object/duplicate-name", "stage": "compose" },
+    { "tag": "string/lone-surrogate", "stage": "parse" }
   ]
 }
 ```
