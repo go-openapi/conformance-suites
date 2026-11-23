@@ -21,3 +21,10 @@ var smokeArtifact []byte
 func SmokeSuite() (suite.Header, []suite.Case, error) {
 	return suite.FromBytes(smokeArtifact)
 }
+
+// Bytes returns the stored corpus as written: a gzipped JSONL file.
+//
+// Use it to keep a copy of the file in step with this module.
+func Bytes() []byte {
+	return smokeArtifact
+}
