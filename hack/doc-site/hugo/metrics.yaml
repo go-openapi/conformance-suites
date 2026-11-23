@@ -15,7 +15,7 @@ params:
         # JSON suite.
         json_tags: 7            # 3 JSON tags + 4 encoding tags
         json_mutations: 8
-        json_compact_cases: 1642
+        json_compact_cases: 3039    # re-measured 2026-11-23, after the construct census
         json_compact_refused: 1323
         json_full_cases: 154358
         json_full_size: "2.2 MiB"

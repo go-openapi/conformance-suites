@@ -20,7 +20,7 @@ import (
 // Bump it when the documents a seed produces change. A corpus whose generator
 // string no longer matches is not regenerable and has to be rebuilt rather
 // than diffed.
-const Generator = "jsoncorpus/1"
+const Generator = "jsoncorpus/2"
 
 // Build is the recipe for a corpus: how much to generate, and how much of it
 // to keep.
@@ -113,6 +113,9 @@ func (b Build) cases() []suite.Case {
 
 	out := make([]suite.Case, 0, len(entries))
 	kept := map[string]int{}
+	// The construct sets already held, so a document bringing a new combination
+	// survives the quota. See Constructs.
+	seenConstructs := map[string]bool{}
 
 	for i, shape := range EncodingShapes() {
 		doc := Describe(shape.Name, shape.Src)
@@ -154,10 +157,19 @@ func (b Build) cases() []suite.Case {
 		signature := fmt.Sprintf("%x", one.Signature())
 		covers := one.AddsTo(seen)
 
-		if b.minimizing() && !covers && kept[signature] >= b.PerSignature {
+		// The construct set is the second half of the decision. The route is
+		// saturated -- every reachable production is entered -- so it cannot
+		// tell a tab from a space or "\b" from "\n". A document whose
+		// combination of constructs nothing before it held is kept whatever
+		// its route. It is an *or*: the route still keeps everything it kept.
+		shape := ConstructSet(e.Doc.Src)
+		novel := e.Doc.WellFormed && !seenConstructs[shape]
+
+		if b.minimizing() && !covers && !novel && kept[signature] >= b.PerSignature {
 			continue
 		}
 
+		seenConstructs[shape] = true
 		seen.Merge(one)
 		kept[signature]++
 

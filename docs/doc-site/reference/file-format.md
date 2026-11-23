@@ -32,10 +32,10 @@ The header of the embedded JSON compact corpus:
   "format": 4,
   "grammar": "RFC 8259",
   "digest": "sha256:ae0322c3aeb0db880dc20a2a5984f4318d59469efe4c5e3b80de5f1314ac584c",
-  "generator": "jsoncorpus/1",
+  "generator": "jsoncorpus/2",
   "seed": 1,
   "tier": "compact",
-  "cases": 1642,
+  "cases": 3039,
   "vocabulary": [
     { "tag": "encoding/bom", "stage": "parse" },
     { "tag": "encoding/not-utf8", "stage": "parse" },
