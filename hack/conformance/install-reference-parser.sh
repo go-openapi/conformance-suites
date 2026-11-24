@@ -21,6 +21,9 @@
 #   hack/conformance/install-reference-parser.sh --check  # report and exit
 #
 # The harness looks in the same place. Override both with REFPARSER_HOME.
+#
+# It takes the latest commit of each branch. Pin them with REFPARSER_MAIN and
+# REFPARSER_EXT, as the consensus image does, to install a known revision.
 
 set -euo pipefail
 
@@ -74,8 +77,8 @@ def fetch(sha, path, out):
 
 
 repo = "https://api.github.com/repos/yaml/yaml-reference-parser"
-main = api(f"{repo}/commits/main")["sha"]
-ext = api(f"{repo}/commits/ext-perl")["sha"]
+main = os.environ.get("REFPARSER_MAIN") or api(f"{repo}/commits/main")["sha"]
+ext = os.environ.get("REFPARSER_EXT") or api(f"{repo}/commits/ext-perl")["sha"]
 
 parser = ["bin/yaml-parser"] + [
     "lib/" + n for n in
@@ -88,7 +91,7 @@ for f in parser:
 # ext-perl branch, so this needs no CPAN. bin/yaml-parser looks for them under
 # ext/perl and shells out to make when the directory is missing, which is the
 # one thing that would need network at parse time.
-tree = api(f"{repo}/git/trees/ext-perl?recursive=1")["tree"]
+tree = api(f"{repo}/git/trees/{ext}?recursive=1")["tree"]
 libs = [e["path"] for e in tree if e["type"] == "blob" and e["path"].startswith("lib/perl5/")]
 for f in libs:
     fetch(ext, f, os.path.join(dest, "ext/perl", f))

@@ -1,0 +1,9 @@
+# The consensus image copies the repository into its build stage. Keep the context to what a build reads.
+.git
+.claude
+**/testdata/rapid
+**/*.jsonl.gz
+!json/testdata/json-compact.jsonl.gz
+!yaml/corpus/testdata/yaml-compact.jsonl.gz
+hack/doc-site/hugo/public
+hack/doc-site/hugo/themes/hugo-relearn

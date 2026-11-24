@@ -20,6 +20,9 @@
 #   hack/conformance/install-libfyaml.sh --check  # report and exit
 #
 # The harness looks in the same place. Override both with LIBFYAML_HOME.
+#
+# It takes the latest release. Pin one with LIBFYAML_VERSION, as the consensus
+# image does: LIBFYAML_VERSION=1.0.0rc2.
 
 set -euo pipefail
 
@@ -56,5 +59,5 @@ fi
 
 echo "installing libfyaml into $DEST"
 mkdir -p "$DEST"
-pip3 install --quiet --upgrade --target "$DEST" libfyaml
+pip3 install --quiet --upgrade --target "$DEST" "libfyaml${LIBFYAML_VERSION:+==$LIBFYAML_VERSION}"
 check
