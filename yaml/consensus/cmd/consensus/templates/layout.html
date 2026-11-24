@@ -1,0 +1,49 @@
+{{define "top"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{if .Title}}{{.Title}} - {{end}}YAML consensus</title>
+<style>
+:root { --fg:#1d1d1f; --bg:#fff; --muted:#6b6b70; --line:#d9d9de; --ok:#1f7a3a; --diff:#b3261e; --tag:#9a5b00; --split:#5b3fa8; --head:#f4f4f6; }
+@media (prefers-color-scheme: dark) { :root { --fg:#e8e8ea; --bg:#151517; --muted:#a0a0a8; --line:#36363c; --ok:#5cc47f; --diff:#ff7a70; --tag:#e0a24a; --split:#b39cff; --head:#202024; } }
+body { font: 14px/1.45 system-ui, sans-serif; color:var(--fg); background:var(--bg); margin:0 auto; padding:16px; max-width:1200px; }
+a { color:inherit; }
+nav a { margin-right:1em; }
+table { border-collapse:collapse; margin:0.5em 0 1.5em; }
+th, td { border:1px solid var(--line); padding:3px 8px; text-align:right; vertical-align:top; }
+th { background:var(--head); }
+td.name, th.name { text-align:left; }
+pre { background:var(--head); padding:8px; overflow:auto; white-space:pre-wrap; word-break:break-all; margin:0.3em 0; }
+.muted { color:var(--muted); }
+.s-ok, .s-refused-correctly, .s-unanimous { color:var(--ok); }
+.s-diff, .s-accepted-wrongly, .s-error { color:var(--diff); font-weight:600; }
+.s-difftagged { color:var(--tag); font-weight:600; }
+.s-split { color:var(--split); font-weight:600; }
+.zero { color:var(--muted); }
+.wrap { overflow-x:auto; }
+</style>
+</head>
+<body>
+<nav><a href="{{.Root}}index.html">Summary</a><a href="{{.Root}}tags.html">By tag</a><a href="{{.Root}}features.html">By feature</a>{{range .Head.Sources}}<a href="{{$.Root}}source/{{.ID}}.html">{{.ID}}</a>{{end}}</nav>
+{{end}}
+
+{{define "bottom"}}
+<p class="muted">Corpus {{.Head.Corpus.Tier}}, {{.Head.Corpus.Cases}} cases, {{.Head.Corpus.Generator}}. Run {{.Head.Started.Format "2006-01-02 15:04 UTC"}}{{if .Head.Elapsed}}, {{.Head.Elapsed}}{{end}}.</p>
+</body>
+</html>
+{{end}}
+
+{{define "caserows"}}
+<div class="wrap"><table>
+<tr><th class="name">case</th><th class="name">tags</th><th>corpus</th>{{range .Head.Sources}}<th>{{.ID}}</th>{{end}}</tr>
+{{range $c := .Cases}}
+<tr><td class="name"><a href="{{$.Root}}case/{{$c.Short}}.html">{{$c.Name}}</a></td>
+<td class="name">{{range $c.Tags}}{{.}} {{end}}</td>
+<td>{{if $c.WellFormed}}accept{{else}}refuse{{end}}</td>
+{{range $i, $s := $.Head.Sources}}{{$v := status $c "verdict" $i}}{{$x := status $c "value" $i}}<td><span class="{{cls $v}}">{{$v}}</span>{{if or (eq $x "diff") (eq $x "diff, tagged")}}<br><span class="{{cls $x}}">value {{$x}}</span>{{end}}</td>{{end}}
+</tr>
+{{end}}
+</table></div>
+{{if .Truncated}}<p class="muted">and {{.Truncated}} more.</p>{{end}}
+{{end}}

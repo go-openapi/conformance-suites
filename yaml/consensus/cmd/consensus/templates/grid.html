@@ -1,0 +1,16 @@
+{{define "grid.html"}}{{template "top" .}}
+<h1>{{.Grid.Title}}</h1>
+<p>Each cell is the number of cases a source reads otherwise than the corpus: the verdict, then the value. "split"
+counts the cases the sources answer differently among themselves, on any question.</p>
+<div class="wrap"><table>
+<tr><th class="name">{{.Grid.Kind}}</th><th>cases</th>{{range .Head.Sources}}<th>{{.ID}}<br><span class="muted">verdict · value</span></th>{{end}}<th class="s-split">split</th></tr>
+{{range $f := .Grid.Families}}
+{{if $f.Name}}<tr><th class="name" colspan="{{len $.Head.Sources}}">{{$f.Name}}</th><th colspan="3"></th></tr>{{end}}
+{{range $r := $f.Rows}}
+<tr><td class="name"><a href="{{$r.Page}}">{{$r.Name}}</a></td><td>{{$r.Cases}}</td>
+{{range $i, $s := $.Head.Sources}}<td><span class="{{if index $r.Verdict $i}}s-diff{{else}}zero{{end}}">{{index $r.Verdict $i}}</span> · <span class="{{if index $r.Value $i}}s-diff{{else}}zero{{end}}">{{index $r.Value $i}}</span></td>{{end}}
+<td class="{{if $r.Splits}}s-split{{else}}zero{{end}}">{{$r.Splits}}</td></tr>
+{{end}}
+{{end}}
+</table></div>
+{{template "bottom" .}}{{end}}

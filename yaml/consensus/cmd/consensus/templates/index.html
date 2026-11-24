@@ -1,0 +1,28 @@
+{{define "index.html"}}{{template "top" .}}
+<h1>YAML consensus</h1>
+<p>How the YAML implementations below read the {{.Head.Corpus.Tier}} corpus ({{.Head.Corpus.Cases}} cases, grammar
+<code>{{.Head.Corpus.Grammar}}</code>). This is not a vote: the report shows where the implementations take different
+routes through the same document, and scores each against the corpus alone.</p>
+
+<h2>Sources</h2>
+<table>
+<tr><th class="name">id</th><th class="name">implementation</th><th class="name">version</th></tr>
+{{range .Head.Sources}}<tr><td class="name"><a href="source/{{.ID}}.html">{{.ID}}</a>{{if .UnderTest}} (under test){{end}}</td><td class="name">{{.What}}</td><td class="name">{{.Version}}</td></tr>
+{{end}}
+</table>
+
+{{range $q := .Questions}}
+<h2>{{$q.Title}}</h2>
+<div class="wrap"><table>
+<tr><th class="name">source</th>{{range $q.Statuses}}<th class="{{cls .}}">{{.}}</th>{{end}}</tr>
+{{range $i, $s := $.Head.Sources}}
+<tr><td class="name">{{$s.ID}}</td>{{range $st := $q.Statuses}}{{$n := count $.Summary $q.ID $i $st}}<td class="{{if $n}}{{cls $st}}{{else}}zero{{end}}">{{$n}}</td>{{end}}</tr>
+{{end}}
+</table></div>
+<p class="muted">Cases the sources answer differently: {{index $.Summary.Splits $q.ID}}.</p>
+{{end}}
+
+<p class="muted">A verdict is the parser's: a refusal by the step that builds a value comes after a clean parse, so
+it counts as the parser accepting. "diff, tagged" is a difference on a case carrying a tag, which may be a position
+the implementation takes on that tag; "diff" is a difference on a case with none.</p>
+{{template "bottom" .}}{{end}}

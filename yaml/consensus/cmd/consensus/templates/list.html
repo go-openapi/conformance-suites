@@ -1,0 +1,7 @@
+{{define "list.html"}}{{template "top" .}}
+<h1>{{.Title}}</h1>
+{{if .Source.ID}}<p>{{.Source.What}}, {{.Source.Version}}. The cases it reads otherwise than the corpus, or fails on.</p>
+{{else}}<p>The cases carrying {{.Title}} that a source reads otherwise than the corpus, or that the sources answer
+differently.</p>{{end}}
+{{if .Cases}}{{template "caserows" .}}{{else}}<p class="muted">None.</p>{{end}}
+{{template "bottom" .}}{{end}}
