@@ -37,7 +37,7 @@ Placed by `jsoncorpus.Vocabulary`. RFC 8259 settles none of them: each one is a 
 | `number/out-of-range` | construct | open | A number the grammar admits and float64 cannot carry: it overflows, underflows to zero, or is an integer too large to survive as one. RFC 8259 section 6 lets an implementation limit range and precision, so a parser that converts is exposed where a parser that keeps the text is not. |
 | `object/duplicate-name` | compose | open | An object holding two members of one name. RFC 8259 section 4 says names SHOULD be unique and calls the behavior of software receiving such an object unpredictable: it may keep the last, keep the first, or refuse. |
 | `string/lone-surrogate` | parse | open | A `\uXXXX` escape naming a surrogate that is not part of a well-formed pair. RFC 8259 section 8.2 calls the behavior unpredictable. The escape itself is grammatical -- four hex digits -- so this is a question about the value, never about the syntax. |
-| `structure/deep-nesting` | parse | open | A document nested past deepEnough. No specification sets a limit and every parser has one, whether it says so or not. |
+| `structure/deep-nesting` | parse | open | A document nested more than 128 levels deep. No specification sets a limit and every parser has one, whether it says so or not. The generator stays well below that depth on purpose, so that no case tests the budget a parser keeps against hostile input. |
 
 ## YAML
 

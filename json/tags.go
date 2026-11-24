@@ -35,8 +35,10 @@ const (
 	// unpredictable. The escape itself is grammatical -- four hex digits -- so
 	// this is a question about the value, never about the syntax.
 	TagLoneSurrogate stance.Tag = "string/lone-surrogate"
-	// TagDeepNesting marks a document nested past deepEnough. No specification
-	// sets a limit and every parser has one, whether it says so or not.
+	// TagDeepNesting marks a document nested more than 128 levels deep. No
+	// specification sets a limit and every parser has one, whether it says so
+	// or not. The generator stays well below that depth on purpose, so that
+	// no case tests the budget a parser keeps against hostile input.
 	TagDeepNesting stance.Tag = "structure/deep-nesting"
 	// TagDuplicateName marks an object holding two members of one name. RFC
 	// 8259 section 4 says names SHOULD be unique and calls the behavior of
