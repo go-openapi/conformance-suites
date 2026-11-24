@@ -201,7 +201,7 @@ func (b Build) cases() []suite.Case {
 			WellFormed: wellFormed,
 			VerdictAt:  verdictAt(e),
 			Opaque:     !utf8.Valid(e.Src),
-			Tags:       append(append(encodingTags(e.Src), representationNames(e.Value)...), names(e.Tags)...),
+			Tags:       append(append(append(encodingTags(e.Src), representationNames(e.Value)...), names(e.Tags)...), mutantTags(e)...),
 			Features:   featureNames(e.Features),
 			Meaning:    meaning,
 			Meanings:   readingsOfEntry(e, meaning),
@@ -299,6 +299,23 @@ func representationNames(v yamlgen.Value) []string {
 	}
 
 	return names(representationTags(v))
+}
+
+// mutantTags reports what a mutation wrote into a document's directives that the generator did not.
+//
+// A byte mutant carries none of the generator's tags, which describe the document before it was broken, and the
+// grammar cannot see a property that needs the directives already read. [DirectiveTags] finds those in the text:
+// a broken "%TAG" line leaves the shorthand below it undeclared, a changed "%YAML" line names another version, a
+// broken directive name makes a reserved directive.
+//
+// An alias whose anchor a mutation removed needs no tag here: it arises at composing, and a mutant's verdict is
+// claimed for parsing only (see verdictAt).
+func mutantTags(e Entry) []string {
+	if e.Mutation == "" {
+		return nil
+	}
+
+	return names(DirectiveTags(e.Src))
 }
 
 // encodingTags reports what a document's bytes exhibit, which for a generated
