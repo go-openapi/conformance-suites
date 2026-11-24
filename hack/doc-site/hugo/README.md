@@ -20,8 +20,10 @@ hugo/
 ```
 
 Content lives in `docs/doc-site/` at the repository root and is mounted as
-Hugo's content directory. Every page there is hand-written; nothing on the site
-is generated from source.
+Hugo's content directory. Every page there is hand-written except
+`reference/tags.md`, which `go run hack/doc-site/gentags.go` writes from each
+grammar's `Vocabulary()` and the doc comments on the tag constants. Run it from
+the repository root after changing a tag, and commit the page with the change.
 
 ## Running it locally
 
