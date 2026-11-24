@@ -156,6 +156,27 @@ func TestEveryTagThePatternsUseIsPlaced(t *testing.T) {
 	}
 }
 
+// TestEveryTagTheShapesUseIsPlaced holds the vocabulary to every case Cases builds, each family included.
+//
+// "separation/tab" went unplaced this way: SeparationVocabulary was written and never merged into Vocabulary, and
+// the corpus header still gave the tag the stage "parse", by the fallback the test above describes.
+func TestEveryTagTheShapesUseIsPlaced(t *testing.T) {
+	vocabulary := yamlbuild.Vocabulary()
+
+	var docs []stance.Doc
+	for _, c := range yamlbuild.Cases() {
+		tags := make([]stance.Tag, 0, len(c.Tags))
+		for _, tag := range c.Tags {
+			tags = append(tags, stance.Tag(tag))
+		}
+		docs = append(docs, stance.Doc{Name: c.Name, Tags: tags})
+	}
+
+	if unplaced := vocabulary.Unplaced(docs); len(unplaced) > 0 {
+		t.Errorf("the shapes use tags no stage places: %v", unplaced)
+	}
+}
+
 // TestEveryRuleIsPlacedToo holds it to the rules from the other side.
 func TestEveryRuleIsPlacedToo(t *testing.T) {
 	vocabulary := yamlbuild.Vocabulary()

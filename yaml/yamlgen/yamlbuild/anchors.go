@@ -168,6 +168,8 @@ func Vocabulary() stance.Vocabulary {
 
 	maps.Copy(out, RepresentationVocabulary())
 
+	maps.Copy(out, SeparationVocabulary())
+
 	return out
 }
 
