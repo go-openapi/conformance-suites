@@ -63,7 +63,7 @@ import (
 
 // Version names what is being consulted, so a corpus entry that rests on this
 // reading records which one gave it.
-const Version = "go.yaml.in/yaml/v3 v3.0.5"
+const Version = "go.yaml.in/yaml/v3 v3.0.6"
 
 // Load reads src and returns what yaml.v3 makes of each document in it.
 //

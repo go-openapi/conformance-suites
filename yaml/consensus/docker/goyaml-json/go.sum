@@ -1,0 +1,4 @@
+github.com/go-openapi/go-yaml v0.0.0-20261123092944-569e0d675ee1 h1:4/El2kyR+espa3KtCgwH1LD81G8s8E7VtQqSI7h/Oew=
+github.com/go-openapi/go-yaml v0.0.0-20261123092944-569e0d675ee1/go.mod h1:VZ1eIRG97HX7dByQnxTDYZ9WhB8ctLf4iPq/6FFEHfI=
+github.com/go-openapi/testify/v2 v2.8.1 h1:zk3S6KaDY1iQW91vsOJc25Ql1xm5bhPrZKdnL930bRQ=
+github.com/go-openapi/testify/v2 v2.8.1/go.mod h1:4gUN8jC+RqOE2qjW/vDmfyTvl5BCht4qL7oca0odrak=

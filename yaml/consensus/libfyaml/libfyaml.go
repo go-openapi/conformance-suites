@@ -114,7 +114,7 @@ func Available() bool { return Version() != "" }
 
 // Version is the installed version, empty when there is none.
 func Version() string {
-	out, err := run(`import libfyaml; print(getattr(libfyaml, "__version__", "unknown"))`, "")
+	out, err := run(context.Background(), `import libfyaml; print(getattr(libfyaml, "__version__", "unknown"))`, "")
 	if err != nil {
 		return ""
 	}
@@ -145,6 +145,11 @@ func Load(src []byte) ([]string, error) { return LoadMode(src, YAML12) }
 
 // LoadMode is [Load] under a named YAML version.
 func LoadMode(src []byte, mode Mode) ([]string, error) {
+	return LoadContext(context.Background(), src, mode)
+}
+
+// LoadContext is [LoadMode], stopped when ctx is done.
+func LoadContext(ctx context.Context, src []byte, mode Mode) ([]string, error) {
 	const script = `
 import json, sys
 import libfyaml
@@ -155,7 +160,7 @@ out = [libfyaml.json_dumps(doc) for doc in libfyaml.loads_all(src, mode=mode)]
 print(json.dumps(out))
 `
 
-	out, err := run(script, string(src), string(mode))
+	out, err := run(ctx, script, string(src), string(mode))
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +173,7 @@ print(json.dumps(out))
 	return docs, nil
 }
 
-func run(script, stdin string, args ...string) (string, error) {
+func run(ctx context.Context, script, stdin string, args ...string) (string, error) {
 	home := Home()
 	if home == "" {
 		return "", ErrNotInstalled
@@ -179,7 +184,7 @@ func run(script, stdin string, args ...string) (string, error) {
 	}
 
 	argv := append([]string{"-c", script}, args...)
-	cmd := exec.CommandContext(context.Background(), "python3", argv...)
+	cmd := exec.CommandContext(ctx, "python3", argv...)
 	cmd.Env = append(os.Environ(), "PYTHONPATH="+home)
 	cmd.Stdin = strings.NewReader(stdin)
 
@@ -192,4 +197,70 @@ func run(script, stdin string, args ...string) (string, error) {
 	}
 
 	return out.String(), nil
+}
+
+// ErrNoTool says fy-tool, libfyaml's command-line tool, could not be found.
+var ErrNoTool = errors.New("libfyaml: fy-tool is not installed; set FY_TOOL or put fy-tool on PATH")
+
+// Tool is the fy-tool this package runs for events: FY_TOOL when set, else fy-tool on PATH.
+//
+// The Python binding has no event API, so the events come from libfyaml's own command-line tool. Build it from the
+// same release as the binding, so that both answers come from one version.
+func Tool() string {
+	if set := os.Getenv("FY_TOOL"); set != "" {
+		return set
+	}
+	found, err := exec.LookPath("fy-tool")
+	if err != nil {
+		return ""
+	}
+
+	return found
+}
+
+// ToolVersion is what "fy-tool --version" prints, or empty when there is no tool.
+func ToolVersion() string {
+	tool := Tool()
+	if tool == "" {
+		return ""
+	}
+	out, err := exec.CommandContext(context.Background(), tool, "--version").Output()
+	if err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(string(out))
+}
+
+// Events runs src through "fy-tool --testsuite" and returns the event stream in test.event form.
+//
+// ok is false when libfyaml refused the document, and msg is what it said. err is a failure to run at all.
+func Events(ctx context.Context, src []byte) (events []string, ok bool, msg string, err error) {
+	tool := Tool()
+	if tool == "" {
+		return nil, false, "", ErrNoTool
+	}
+
+	cmd := exec.CommandContext(ctx, tool, "--testsuite")
+	cmd.Stdin = bytes.NewReader(src)
+
+	var out, errs bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &errs
+
+	if runErr := cmd.Run(); runErr != nil {
+		if _, exited := errors.AsType[*exec.ExitError](runErr); !exited {
+			return nil, false, "", fmt.Errorf("libfyaml: %w", runErr)
+		}
+
+		return nil, false, strings.TrimSpace(errs.String()), nil
+	}
+
+	for line := range strings.SplitSeq(strings.TrimRight(out.String(), "\n"), "\n") {
+		if line != "" {
+			events = append(events, line)
+		}
+	}
+
+	return events, true, "", nil
 }

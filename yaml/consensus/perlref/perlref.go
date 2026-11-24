@@ -94,11 +94,16 @@ func Commit() string {
 // where a document stops being one is more informative than the fact that it
 // did.
 func Events(src []byte) (events []string, ok bool, err error) {
+	return EventsContext(context.Background(), src)
+}
+
+// EventsContext is [Events], stopped when ctx is done.
+func EventsContext(ctx context.Context, src []byte) (events []string, ok bool, err error) {
 	if !Available() {
 		return nil, false, ErrNotInstalled
 	}
 
-	cmd := exec.CommandContext(context.Background(), "perl", filepath.Join(Home(), "bin", "yaml-parser")) //nolint:gosec // the reference parser the install script put under Home
+	cmd := exec.CommandContext(ctx, "perl", filepath.Join(Home(), "bin", "yaml-parser")) //nolint:gosec // the reference parser the install script put under Home
 	cmd.Stdin = bytes.NewReader(src)
 
 	var out, errs bytes.Buffer
