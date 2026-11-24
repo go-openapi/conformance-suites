@@ -127,6 +127,13 @@ params:
     json_compact_refused: 0
     json_full_cases: 0
     json_full_size: ''
+    json_per_signature: 0
+    json_deep_nesting: 0
+    json_jts_accept: 0
+    json_jts_reject: 0
+    json_jts_impl: 0
+    json_jts_impl_accepted: 0
+    json_constructs: 0
 
 # Menu configuration
 menu:

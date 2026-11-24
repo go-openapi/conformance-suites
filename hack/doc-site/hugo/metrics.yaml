@@ -19,3 +19,13 @@ params:
         json_compact_refused: 1331
         json_full_cases: 144396
         json_full_size: "2.5 MiB"
+        json_per_signature: 16      # jsoncorpus.Compact().PerSignature
+        json_deep_nesting: 128      # deepEnough in json/tags.go: structure/deep-nesting is past this depth
+
+        # The vendored JSONTestSuite, as TestRecognizerAgreesWithJSONTestSuite scores it, and the census of
+        # TestTheGeneratedCorpusIsWiderThanTheSuite. Measured 2026-11-24 with go test -v ./json.
+        json_jts_accept: 95         # y_ files, all accepted
+        json_jts_reject: 188        # n_ files, all refused
+        json_jts_impl: 35           # i_ files, recorded and never asserted
+        json_jts_impl_accepted: 21
+        json_constructs: 40         # jsoncorpus.Constructs
