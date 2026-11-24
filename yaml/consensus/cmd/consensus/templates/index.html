@@ -24,5 +24,7 @@ routes through the same document, and scores each against the corpus alone.</p>
 
 <p class="muted">A verdict is the parser's: a refusal by the step that builds a value comes after a clean parse, so
 it counts as the parser accepting. "diff, tagged" is a difference on a case carrying a tag, which may be a position
-the implementation takes on that tag; "diff" is a difference on a case with none.</p>
+the implementation takes on that tag; "diff" is a difference on a case with none. "unscored" is a refusal by a
+source's composer (an alias naming no anchor, a key written twice) of a case that claims its verdict for parsing
+only, as a mutant does.</p>
 {{template "bottom" .}}{{end}}

@@ -206,7 +206,7 @@ var unsafeName = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 
 // cacheFormat names the shape of a cached answer. Raise it whenever an adapter or CanonicalJSON writes an answer
 // differently, so that a cache written the old way is left behind instead of compared with new answers.
-const cacheFormat = "2"
+const cacheFormat = "3"
 
 func openCache(dir, id, version string) (*cache, error) {
 	c := &cache{answers: map[string]consensus.Answer{}}

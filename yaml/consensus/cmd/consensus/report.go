@@ -47,7 +47,7 @@ type question struct {
 
 var questions = []question{
 	{ID: "verdict", Title: "Verdict, against the corpus", Statuses: []string{
-		statusOK, statusDiff, statusDiffTag, statusRefusedOK, statusAccepted, statusError,
+		statusOK, statusDiff, statusDiffTag, statusUnscored, statusRefusedOK, statusAccepted, statusError,
 	}},
 	{ID: "value", Title: "Value, against the meaning the corpus states", Statuses: []string{
 		statusOK, statusDiff, statusDiffTag, statusRefused, statusUnscored, statusNoAnswer, statusError,
@@ -114,6 +114,11 @@ func judge(rec record, sources []sourceInfo) judged {
 		switch {
 		case rec.WellFormed && parsed:
 			j.Status["verdict"][i] = statusOK
+		case rec.WellFormed && a.RefusedBy == consensus.Composer && stages[rec.VerdictAt] < stages["compose"]:
+			// The source's composer refused a document whose acceptance the corpus claims for parsing only, as a
+			// mutant's is: an alias naming no anchor, a key written twice. Table.Expect leaves such a case undecided
+			// for a consumer that composes, and so does the report.
+			j.Status["verdict"][i] = statusUnscored
 		case rec.WellFormed && tagged:
 			j.Status["verdict"][i] = statusDiffTag
 		case rec.WellFormed:
@@ -166,6 +171,9 @@ func judge(rec record, sources []sourceInfo) judged {
 
 	return j
 }
+
+// stages orders the stages a verdict may be claimed at.
+var stages = map[string]int{"": 0, "parse": 0, "compose": 1, "construct": 2}
 
 func valueStatus(rec record, a consensus.Answer, meaning string, tagged bool) string {
 	switch {

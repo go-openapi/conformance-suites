@@ -174,9 +174,13 @@ func yamlv3Answer(_ context.Context, src []byte) consensus.Answer {
 	docs, err := goyaml.Load(src)
 	if err != nil {
 		stage := consensus.Parser
-		// yaml.v3 names a loader error "unmarshal errors", and its parser errors carry a line.
-		if strings.Contains(err.Error(), "unmarshal errors") || strings.Contains(err.Error(), "invalid map key") {
+		// yaml.v3 names a loader error "unmarshal errors", and its parser errors carry a line. An alias naming no
+		// anchor is its composer's.
+		switch msg := err.Error(); {
+		case strings.Contains(msg, "unmarshal errors") || strings.Contains(msg, "invalid map key"):
 			stage = consensus.Loader
+		case strings.Contains(msg, "unknown anchor"):
+			stage = consensus.Composer
 		}
 
 		return consensus.Answer{Verdict: consensus.Refuse, RefusedBy: stage, Message: consensus.FirstLine(err.Error())}

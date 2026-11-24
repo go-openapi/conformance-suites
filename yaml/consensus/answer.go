@@ -44,6 +44,9 @@ type Stage string
 const (
 	// Parser is a refusal by the parser: the document is not YAML, by this source's reading.
 	Parser Stage = "parser"
+	// Composer is a refusal by the step that resolves the representation after a clean parse: an alias naming no
+	// anchor, a key written twice. A document the corpus claims for parsing only may be refused here.
+	Composer Stage = "composer"
 	// Loader is a refusal by the step that builds a value, after a clean parse: a key Python cannot hash, a boolean
 	// built from an empty node, a tag the loader has no constructor for. It is not a syntax verdict.
 	Loader Stage = "loader"

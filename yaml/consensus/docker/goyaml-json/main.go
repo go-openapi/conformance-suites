@@ -10,7 +10,7 @@
 // It is a program of its own, built into the consensus image, so that the yaml/consensus module does not require
 // go-openapi/go-yaml: the parser under test changes far more often than the references it is compared with.
 //
-// The verdict is parser.ParseBytes's. A stream of one document is converted with codec.ToJSON, go-yaml's own JSON
+// The verdict is parser.ParseBytes's, with the refusals that are its composer's told apart. A stream of one document is converted with codec.ToJSON, go-yaml's own JSON
 // path; a longer one is decoded a document at a time with codec.UseStringKeys, because ToJSON converts only the first.
 // An error after a clean parse is the loader's.
 package main
@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/go-openapi/go-yaml/codec"
+	yamlerrors "github.com/go-openapi/go-yaml/errors"
 	"github.com/go-openapi/go-yaml/parser"
 )
 
@@ -54,7 +55,15 @@ func main() {
 func read(src []byte) answer {
 	file, err := parser.ParseBytes(src)
 	if err != nil {
-		return answer{Verdict: "refuse", RefusedBy: "parser", Message: firstLine(err)}
+		// go-yaml's parser resolves aliases and checks keys as it reads, and those refusals are the composer's: an
+		// alias naming no anchor or standing inside its own, a key written twice.
+		stage := "parser"
+		if errors.Is(err, yamlerrors.ErrUnknownAnchor) || errors.Is(err, yamlerrors.ErrRecursiveAlias) ||
+			errors.Is(err, yamlerrors.ErrDuplicateKey) {
+			stage = "composer"
+		}
+
+		return answer{Verdict: "refuse", RefusedBy: stage, Message: firstLine(err)}
 	}
 
 	docs := len(file.Docs)
