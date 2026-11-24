@@ -12,9 +12,9 @@ import (
 	"github.com/go-openapi/conformance-suites/yaml/yamlgen/yamlbuild"
 )
 
-// TestTheDirectiveTagsAreFoundInTheText holds DirectiveTags to the mutants the consensus runner found untagged,
+// TestTheTextTagsAreFoundInTheText holds TextTags to the mutants the consensus runner found untagged,
 // where every implementation refuses the document, and to the places a "!x!" is text and not a tag.
-func TestTheDirectiveTagsAreFoundInTheText(t *testing.T) {
+func TestTheTextTagsAreFoundInTheText(t *testing.T) {
 	const (
 		undeclared = yamlbuild.TagUndeclaredHandle
 		reserved   = yamlbuild.TagDirectiveReserved
@@ -63,8 +63,19 @@ func TestTheDirectiveTagsAreFoundInTheText(t *testing.T) {
 		"k: |\n  !x!str\n  more\n":     nil,
 		"- >-\n  !x!str\n- b\n":        nil,
 		"k: 'two\n  lines !x! here'\n": nil,
+
+		// An escape past U+10FFFF, and the places "\U" is no escape: single quotes, plain, a comment, a block scalar.
+		"k: \"\\U00110000\"\n":              {yamlbuild.TagEscapePastUnicode},
+		"- \"a\\U0B000023b\"\n- c\n":        {yamlbuild.TagEscapePastUnicode},
+		"k: \"two\n  lines \\U00B00045\"\n": {yamlbuild.TagEscapePastUnicode},
+		"k: \"\\U0010FFFF\"\n":              nil,
+		"k: \"\\\\U00110000\"\n":            nil,
+		"k: '\\U00110000'\n":                nil,
+		"k: a\\U00110000\n":                 nil,
+		"k: v # \"\\U00110000\"\n":          nil,
+		"k: |\n  \"\\U00110000\"\n":         nil,
 	} {
-		got := yamlbuild.DirectiveTags([]byte(src))
+		got := yamlbuild.TextTags([]byte(src))
 		if len(want) == 0 {
 			assert.Emptyf(t, got, "%q", src)
 

@@ -301,12 +301,13 @@ func representationNames(v yamlgen.Value) []string {
 	return names(representationTags(v))
 }
 
-// mutantTags reports what a mutation wrote into a document's directives that the generator did not.
+// mutantTags reports what a mutation wrote into a document's directives and escapes that the generator did not.
 //
 // A byte mutant carries none of the generator's tags, which describe the document before it was broken, and the
-// grammar cannot see a property that needs the directives already read. [DirectiveTags] finds those in the text:
-// a broken "%TAG" line leaves the shorthand below it undeclared, a changed "%YAML" line names another version, a
-// broken directive name makes a reserved directive.
+// grammar cannot see a property that needs the directives already read, or the code point an escape names.
+// [TextTags] finds those in the text: a broken "%TAG" line leaves the shorthand below it undeclared, a changed
+// "%YAML" line names another version, a broken directive name makes a reserved directive, and a changed digit in
+// "\U00000023" can name a code point past U+10FFFF.
 //
 // An alias whose anchor a mutation removed needs no tag here: it arises at composing, and a mutant's verdict is
 // claimed for parsing only (see verdictAt).
@@ -315,7 +316,7 @@ func mutantTags(e Entry) []string {
 		return nil
 	}
 
-	return names(DirectiveTags(e.Src))
+	return names(TextTags(e.Src))
 }
 
 // encodingTags reports what a document's bytes exhibit, which for a generated
@@ -410,7 +411,7 @@ const Reading = yamlgen.ReadingCore
 func Cases() []suite.Case {
 	out := make([]suite.Case, 0,
 		len(Patterns())+len(Resolutions())+len(TagShapes())+len(KeyShapes())+
-			len(MergeShapes())+len(DirectiveShapes())+len(SeparationShapes())+len(ReachShapes()))
+			len(MergeShapes())+len(DirectiveShapes())+len(SeparationShapes())+len(EscapeShapes())+len(ReachShapes()))
 
 	rec := yamloracle.NewRecognizer(4096)
 	a := Corpus()
@@ -441,6 +442,7 @@ func Cases() []suite.Case {
 		{"shape/merge/", MergeShapes()},
 		{"shape/directive/", DirectiveShapes()},
 		{"shape/separation/", SeparationShapes()},
+		{"shape/escape/", EscapeShapes()},
 		// The reach shapes carry no tags and raise no question. They exist
 		// because the grammar has corners the rest of the corpus does not turn.
 		{"shape/reach/", ReachShapes()},
@@ -633,8 +635,9 @@ func AllRules() stance.Rules {
 	out := AnchorRules()
 	out = append(out, TagRules()...)
 	out = append(out, KeyRules()...)
+	out = append(out, DirectiveRules()...)
 
-	return append(out, DirectiveRules()...)
+	return append(out, EscapeRules()...)
 }
 
 // readingsOfResolution states what a plain scalar denotes under each reading

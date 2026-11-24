@@ -70,6 +70,12 @@ Placed by `yamlbuild.Vocabulary`. A tag the specification settles carries the cl
 | `directive/yaml-repeated` | compose | Reject, section 6.8.1: it is an error to specify more than one YAML directive for the same document | Two %YAML directives for one document. |
 | `directive/yaml-version` | parse | open | A %YAML directive stating the version. |
 
+### escape
+
+| Tag | Stage | Specification | What it marks |
+|---|---|---|---|
+| `escape/past-unicode` | compose | Reject, section 5.7: \U escapes a 32-bit Unicode character, and no character lies past U+10FFFF | A double-quoted scalar holding a `\U` escape past U+10FFFF. |
+
 ### JSON representation
 
 | Tag | Stage | Specification | What it marks |

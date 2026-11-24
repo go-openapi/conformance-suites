@@ -16,7 +16,7 @@ import (
 // namedHandle matches the handle of a tag shorthand written with a named handle: "!e!" in "!e!str".
 var namedHandle = regexp.MustCompile(`^![0-9A-Za-z-]+!`)
 
-// DirectiveTags reports the tags the directives of the stream src give it, sorted.
+// TextTags reports the tags the directives and the escapes of the stream src give it, sorted.
 //
 // A mutant needs them. The generator tags what it wrote, and a mutation that breaks a directive line changes what
 // the stream holds: "%TAG! x! ..." is a reserved directive and declares nothing, so the "!x!str" below it has a
@@ -25,12 +25,13 @@ var namedHandle = regexp.MustCompile(`^![0-9A-Za-z-]+!`)
 // claimed that a parser must read a document every implementation refuses.
 //
 // The tags found are [TagUndeclaredHandle], [TagHandleOutOfScope], [TagYAMLMajorVersion], [TagYAMLMinorVersion],
-// [TagYAMLRepeated], [TagTagHandleRepeated] and [TagDirectiveReserved].
+// [TagYAMLRepeated], [TagTagHandleRepeated] and [TagDirectiveReserved], and [TagEscapePastUnicode] for a "\U" escape
+// in a double-quoted scalar naming a code point past U+10FFFF. The grammar takes any eight hex digits there.
 //
 // It reads the stream as text, which is enough for a stream the grammar accepts. It tracks the directives of each
 // document, and steps over the text a tag cannot stand in: quoted, plain and block scalars, and comments. The
 // primary handle "!" and the secondary "!!" need no declaration.
-func DirectiveTags(src []byte) []stance.Tag {
+func TextTags(src []byte) []stance.Tag {
 	s := directiveScan{
 		found: map[stance.Tag]bool{}, declared: map[string]bool{}, earlier: map[string]bool{},
 		inDirectives: true, blockParent: -1,
@@ -48,7 +49,7 @@ func DirectiveTags(src []byte) []stance.Tag {
 	return out
 }
 
-// directiveScan is the state DirectiveTags carries from one line to the next.
+// directiveScan is the state TextTags carries from one line to the next.
 type directiveScan struct {
 	found map[stance.Tag]bool
 	// declared holds the handles the directives above the next "---" declare; current, those of the document
@@ -230,6 +231,9 @@ func (s *directiveScan) closeQuote(text string, i int) int {
 	for i < len(text) {
 		switch c := text[i]; {
 		case s.quote == '"' && c == '\\':
+			if pastUnicode(text[i+1:]) {
+				s.found[TagEscapePastUnicode] = true
+			}
 			i += 2
 		case c == s.quote && s.quote == '\'' && i+1 < len(text) && text[i+1] == '\'':
 			i += 2
@@ -243,6 +247,17 @@ func (s *directiveScan) closeQuote(text string, i int) int {
 	}
 
 	return -1
+}
+
+// pastUnicode reports whether text, which follows a backslash, is a "U" escape naming a code point past U+10FFFF.
+func pastUnicode(text string) bool {
+	const width = 8
+	if len(text) < 1+width || text[0] != 'U' {
+		return false
+	}
+	n, err := strconv.ParseUint(text[1:1+width], 16, 32)
+
+	return err == nil && n > lastCodePoint
 }
 
 // tokenEnd is where a tag, an anchor or an alias starting at i ends.
