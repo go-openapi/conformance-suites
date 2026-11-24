@@ -13,9 +13,12 @@ package goopenapi
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -50,11 +53,34 @@ func Command() string {
 func Available() bool { return Command() != "" }
 
 // Version is the go-openapi/go-yaml version the program was built from, as "go version -m" reports it, or empty.
+//
+// A program built from a local checkout carries a replace, and its version names the directory, not the code:
+// "v0.0.0-... => /src/go-yaml" for every checkout the image is given. The runner keys its cache on the version, so
+// two checkouts shared one cache, and a run over a fix read back the answers of the build before it. Version
+// appends the first 12 hex digits of the program's SHA-256 to a local build's version. goyaml-json is built with
+// -trimpath, so the digest moves with the compiled code and with nothing else.
 func Version() string {
 	command := Command()
 	if command == "" {
 		return ""
 	}
+
+	version := moduleVersion(command)
+	if version == "" || !isLocalBuild(version) {
+		return version
+	}
+
+	digest, err := fileDigest(command)
+	if err != nil {
+		return version
+	}
+
+	return version + " (build " + digest + ")"
+}
+
+// moduleVersion returns go-openapi/go-yaml's version from "go version -m", or from the image's version file where
+// no Go toolchain is installed.
+func moduleVersion(command string) string {
 	out, err := exec.CommandContext(context.Background(), "go", "version", "-m", command).Output()
 	if err != nil {
 		return versionFile(command)
@@ -71,6 +97,28 @@ func Version() string {
 	}
 
 	return versionFile(command)
+}
+
+// isLocalBuild reports whether version names a build from a local checkout: a replace, or the image's
+// "local checkout" line.
+func isLocalBuild(version string) bool {
+	return strings.Contains(version, " => ") || strings.Contains(version, "local checkout")
+}
+
+// fileDigest returns the first 12 hex digits of the SHA-256 of the file at path.
+func fileDigest(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(h.Sum(nil))[:12], nil
 }
 
 // versionFile reads the version the image wrote beside the program, where no Go toolchain is installed.
