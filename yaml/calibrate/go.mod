@@ -15,7 +15,7 @@ require (
 )
 
 require (
-	github.com/go-openapi/go-yaml v0.0.0-20261122211517-e3188123aaae
+	github.com/go-openapi/go-yaml v0.0.0-20261123092944-569e0d675ee1
 	go.yaml.in/yaml/v3 v3.0.6 // indirect
 )
 
