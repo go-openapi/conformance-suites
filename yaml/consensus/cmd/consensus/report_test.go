@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-openapi/testify/v2/assert"
 
+	"github.com/go-openapi/conformance-suites/stance"
 	"github.com/go-openapi/conformance-suites/suite"
 	"github.com/go-openapi/conformance-suites/yaml/consensus"
 )
@@ -87,6 +88,44 @@ func TestJudgeScoresValuesOnlyWhereTheCorpusStatesOne(t *testing.T) {
 				t.Errorf("value status = %q, want %q", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestJudgeGroupsALoadersRefusalWithTheRefusals(t *testing.T) {
+	sources := []sourceInfo{{ID: "a"}, {ID: "l"}, {ID: "c"}, {ID: "p"}}
+	rec := record{WellFormed: true, Answers: []consensus.Answer{
+		{Source: "a", Verdict: consensus.Accept},
+		{Source: "l", Verdict: consensus.Refuse, RefusedBy: consensus.Loader},
+		{Source: "c", Verdict: consensus.Refuse, RefusedBy: consensus.Composer},
+		{Source: "p", Verdict: consensus.Refuse, RefusedBy: consensus.Loader},
+	}}
+	construct := parserStance{Table: stance.Table{At: stance.Construct}}
+	stances := []parserStance{construct, construct, construct, {Table: stance.Table{At: stance.Parse}}}
+	j := judge(rec, sources, stances)
+
+	got := map[string]string{}
+	for _, g := range j.Groups["verdict"] {
+		for _, id := range g.Sources {
+			got[id] = g.Answer
+		}
+	}
+	want := map[string]string{
+		"a": "accept", "l": "refuse by the loader", "c": "refuse by the composer",
+		"p": "accept, then the loader refuses past parse",
+	}
+	for id, answer := range want {
+		if got[id] != answer {
+			t.Errorf("%s groups under %q, want %q", id, got[id], answer)
+		}
+	}
+	if !j.Split["verdict"] {
+		t.Error("the verdict is not split")
+	}
+
+	rec.Answers[0] = consensus.Answer{Source: "a", Verdict: consensus.Refuse, RefusedBy: consensus.Parser}
+	rec.Answers[3] = consensus.Answer{Source: "p", Verdict: consensus.Refuse, RefusedBy: consensus.Parser}
+	if judge(rec, sources, stances).Split["verdict"] {
+		t.Error("refusals at different stages split the verdict")
 	}
 }
 

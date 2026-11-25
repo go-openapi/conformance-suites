@@ -430,3 +430,16 @@ func tagRules(vocabulary []suite.TagSpec, tags []string) []tagRule {
 
 	return out
 }
+
+// verdictGroup returns the answer a source's verdict groups under on a case page, and the bare verdict that decides
+// whether the sources split: a refusal names its stage, and a refusal past the stance's stage counts as accepting.
+func verdictGroup(a consensus.Answer, at stance.Stage) (group, verdict string) {
+	switch {
+	case rejects(a, at):
+		return "refuse by the " + string(a.RefusedBy), string(consensus.Refuse)
+	case a.Verdict == consensus.Refuse:
+		return "accept, then the " + string(a.RefusedBy) + " refuses past " + at.String(), string(consensus.Accept)
+	default:
+		return string(a.Verdict), string(a.Verdict)
+	}
+}

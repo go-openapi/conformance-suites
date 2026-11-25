@@ -307,6 +307,8 @@ func judge(rec record, sources []sourceInfo, stances []parserStance) judged {
 	}
 
 	verdicts, events, values := map[string]string{}, map[string]string{}, map[string]string{}
+	// plain holds each verdict without the stage that refused, which decides whether the verdict is split.
+	plain := map[string]string{}
 	j.Status["verdict"] = make([]string, len(rec.Answers))
 	j.Status["value"] = make([]string, len(rec.Answers))
 	j.Status["events"] = make([]string, len(rec.Answers))
@@ -328,13 +330,17 @@ func judge(rec record, sources []sourceInfo, stances []parserStance) judged {
 			continue
 		}
 
-		// The verdict is the parser's: a refusal after a clean parse is the parser accepting.
-		parsed := a.Verdict == consensus.Accept || a.RefusedBy == consensus.Loader
-		verdicts[a.Source] = map[bool]string{true: "accept", false: "refuse"}[parsed]
 		var ps parserStance
 		if i < len(stances) {
 			ps = stances[i]
 		}
+
+		// The groups hold the verdict the verdict table scores: a refusal counts up to the stance's stage, and
+		// one past it, such as libfyaml's Python binding failing after fy-tool parsed the document, is an
+		// acceptance. The group names the stage that refused. The events come from the parse, and a refusal by
+		// the loader follows a clean one.
+		parsed := a.Verdict == consensus.Accept || a.RefusedBy == consensus.Loader
+		verdicts[a.Source], plain[a.Source] = verdictGroup(a, ps.Table.At)
 		j.Status["verdict"][i], j.Why[i] = classifyVerdict(rec, a, ps)
 
 		if parsed && len(a.Events) > 0 {
@@ -366,6 +372,7 @@ func judge(rec record, sources []sourceInfo, stances []parserStance) judged {
 			j.Split[q] = true
 		}
 	}
+	j.Split["verdict"] = len(consensus.Groups(plain)) > 1
 
 	for i, a := range rec.Answers {
 		j.Status["events"][i] = eventStatus(sources[i], a, j.Groups["events"])
@@ -463,7 +470,10 @@ func summarize(cases []judged, n int) summary {
 				s.Counts[q][i][st]++
 			}
 		}
-		for q := range c.Split {
+		for q, split := range c.Split {
+			if !split {
+				continue
+			}
 			s.Splits[q]++
 		}
 	}
