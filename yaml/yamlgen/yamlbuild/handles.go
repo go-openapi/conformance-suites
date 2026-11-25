@@ -16,6 +16,9 @@ import (
 // namedHandle matches the handle of a tag shorthand written with a named handle: "!e!" in "!e!str".
 var namedHandle = regexp.MustCompile(`^![0-9A-Za-z-]+!`)
 
+// blockHeaderRest matches what follows "|" or ">" in a block scalar header: the indicators, then blanks and a comment.
+var blockHeaderRest = regexp.MustCompile(`^([1-9][+-]?|[+-][1-9]?)?([ \t]+(#.*)?)?$`)
+
 // TextTags reports the tags the directives and the escapes of the stream src give it, sorted.
 //
 // A mutant needs them. The generator tags what it wrote, and a mutation that breaks a directive line changes what
@@ -27,6 +30,7 @@ var namedHandle = regexp.MustCompile(`^![0-9A-Za-z-]+!`)
 // The tags found are [TagUndeclaredHandle], [TagHandleOutOfScope], [TagYAMLMajorVersion], [TagYAMLMinorVersion],
 // [TagYAMLRepeated], [TagTagHandleRepeated] and [TagDirectiveReserved], and [TagEscapePastUnicode] for a "\U" escape
 // in a double-quoted scalar naming a code point past U+10FFFF. The grammar takes any eight hex digits there.
+// [TagTabOpensContent] is a root block scalar whose first content line opens with a tab: the mutations write tabs.
 //
 // It reads the stream as text, which is enough for a stream the grammar accepts. It tracks the directives of each
 // document, and steps over the text a tag cannot stand in: quoted, plain and block scalars, and comments. The
@@ -66,6 +70,11 @@ type directiveScan struct {
 	// blockParent is the indentation of the line holding a block scalar's header while the scan is inside its
 	// content, and -1 otherwise.
 	blockParent int
+	// rooted is true once the document holds a node token other than its properties.
+	rooted bool
+	// rootBlock is true inside the content of a root block scalar, which runs to the next document marker, and
+	// rootFirst while that content has no line yet holding more than spaces.
+	rootBlock, rootFirst bool
 }
 
 // line reads one line.
@@ -74,6 +83,15 @@ func (s *directiveScan) line(line string) {
 	line = strings.TrimPrefix(line, "\ufeff")
 	indent := len(line) - len(strings.TrimLeft(line, " "))
 	blank := strings.TrimSpace(line) == ""
+
+	if s.rootBlock {
+		if !isMarker(line, "---") && !isMarker(line, "...") {
+			s.rootContent(line)
+
+			return
+		}
+		s.rootBlock = false
+	}
 
 	if s.blockParent >= 0 {
 		if blank || indent > s.blockParent {
@@ -113,6 +131,33 @@ func (s *directiveScan) open(handles map[string]bool) {
 		s.earlier[h] = true
 	}
 	s.current, s.declared, s.inDirectives, s.yamls = handles, map[string]bool{}, false, 0
+	s.rooted = false
+}
+
+// rootContent reads one content line of a root block scalar, and tags a first line that opens with a tab.
+func (s *directiveScan) rootContent(line string) {
+	if !s.rootFirst || strings.Trim(line, " ") == "" {
+		return
+	}
+	s.rootFirst = false
+	if line[0] == '\t' {
+		s.found[TagTabOpensContent] = true
+	}
+}
+
+// blockHeader starts the content of the block scalar whose header opens text, at a line indented by indent.
+//
+// The scalar is the root when no node token came before it in the document and its header is well formed. Its content
+// may then stand at column 0, unless the header carries an indentation indicator other than 1.
+func (s *directiveScan) blockHeader(text string, indent int) {
+	rest := blockHeaderRest.FindStringSubmatch(text[1:])
+	if s.rooted || rest == nil {
+		s.blockParent = indent
+
+		return
+	}
+	s.rooted, s.rootBlock = true, true
+	s.rootFirst = !strings.ContainsAny(rest[1], "23456789")
 }
 
 // directive reads one directive line.
@@ -178,6 +223,7 @@ func (s *directiveScan) content(text string, indent int) {
 		case c == '#':
 			return
 		case c == '\'' || c == '"':
+			s.rooted = true
 			s.quote = c
 			i = s.closeQuote(text, i+1)
 			if i < 0 {
@@ -187,13 +233,17 @@ func (s *directiveScan) content(text string, indent int) {
 			end := tokenEnd(text, i, s.flow > 0)
 			s.shorthand(text[i:end])
 			i = end
-		case c == '&' || c == '*':
+		case c == '&':
+			i = tokenEnd(text, i, s.flow > 0)
+		case c == '*':
+			s.rooted = true
 			i = tokenEnd(text, i, s.flow > 0)
 		case (c == '|' || c == '>') && s.flow == 0:
-			s.blockParent = indent
+			s.blockHeader(text[i:], indent)
 
 			return
 		case c == '[' || c == '{':
+			s.rooted = true
 			s.flow++
 			i++
 		case c == ']' || c == '}':
@@ -205,8 +255,10 @@ func (s *directiveScan) content(text string, indent int) {
 			i++
 		case (c == '-' || c == '?' || c == ':') && (i+1 == len(text) || text[i+1] == ' ' || text[i+1] == '\t' ||
 			(s.flow > 0 && strings.IndexByte(",[]{}", text[i+1]) >= 0)):
+			s.rooted = true
 			i++
 		default:
+			s.rooted = true
 			i = plainEnd(text, i, s.flow > 0)
 		}
 	}

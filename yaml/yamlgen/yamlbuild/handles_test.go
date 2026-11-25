@@ -74,6 +74,20 @@ func TestTheTextTagsAreFoundInTheText(t *testing.T) {
 		"k: a\\U00110000\n":                 nil,
 		"k: v # \"\\U00110000\"\n":          nil,
 		"k: |\n  \"\\U00110000\"\n":         nil,
+
+		// A root block scalar whose content opens with a tab, and the shapes around it.
+		"|\n\tx\n":           {yamlbuild.TagTabOpensContent},
+		"--- >-\n\t.5\n":     {yamlbuild.TagTabOpensContent},
+		"--- !!str |\n\tx\n": {yamlbuild.TagTabOpensContent},
+		"&a\n|1\n\n\tx\n":    {yamlbuild.TagTabOpensContent},
+		"a\n---\n|\n\tx\n":   {yamlbuild.TagTabOpensContent},
+		"|\n \tx\n":          nil,
+		"|\nx\n\ty\n":        nil,
+		"|2\n\tx\n":          nil,
+		"%TAG !x! tag:yaml.org,2002:\n|--\n!x!null Null\n": {yamlbuild.TagUndeclaredHandle},
+		"k: |\n\tx\n":          nil,
+		"- |\n\tx\n":           nil,
+		"|\n x\n---\n\tk: v\n": nil,
 	} {
 		got := yamlbuild.TextTags([]byte(src))
 		if len(want) == 0 {

@@ -411,7 +411,8 @@ const Reading = yamlgen.ReadingCore
 func Cases() []suite.Case {
 	out := make([]suite.Case, 0,
 		len(Patterns())+len(Resolutions())+len(TagShapes())+len(KeyShapes())+
-			len(MergeShapes())+len(DirectiveShapes())+len(SeparationShapes())+len(EscapeShapes())+len(ReachShapes()))
+			len(MergeShapes())+len(DirectiveShapes())+len(SeparationShapes())+len(EscapeShapes())+
+			len(IndentationShapes())+len(ReachShapes()))
 
 	rec := yamloracle.NewRecognizer(4096)
 	a := Corpus()
@@ -443,6 +444,7 @@ func Cases() []suite.Case {
 		{"shape/directive/", DirectiveShapes()},
 		{"shape/separation/", SeparationShapes()},
 		{"shape/escape/", EscapeShapes()},
+		{"shape/indentation/", IndentationShapes()},
 		// The reach shapes carry no tags and raise no question. They exist
 		// because the grammar has corners the rest of the corpus does not turn.
 		{"shape/reach/", ReachShapes()},

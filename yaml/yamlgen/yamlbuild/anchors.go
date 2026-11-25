@@ -172,6 +172,8 @@ func Vocabulary() stance.Vocabulary {
 
 	maps.Copy(out, EscapeVocabulary())
 
+	maps.Copy(out, IndentationVocabulary())
+
 	return out
 }
 

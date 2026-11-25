@@ -76,6 +76,12 @@ Placed by `yamlbuild.Vocabulary`. A tag the specification settles carries the cl
 |---|---|---|---|
 | `escape/past-unicode` | compose | Reject, section 5.7: \U escapes a 32-bit Unicode character, and no character lies past U+10FFFF | A double-quoted scalar holding a `\U` escape past U+10FFFF. |
 
+### indentation
+
+| Tag | Stage | Specification | What it marks |
+|---|---|---|---|
+| `indentation/tab-opens-content` | parse | open | A root block scalar whose first content line opens with a tab at column 0. |
+
 ### JSON representation
 
 | Tag | Stage | Specification | What it marks |
