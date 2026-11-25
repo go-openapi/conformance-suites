@@ -48,6 +48,7 @@ type sourceInfo struct {
 	UnderTest bool   `json:"underTest,omitempty"`
 	Events    bool   `json:"events,omitempty"`
 	Values    bool   `json:"values,omitempty"`
+	RoundTrip bool   `json:"roundTrip,omitempty"`
 }
 
 // record is one case of the corpus and every source's answer for it.
@@ -87,6 +88,7 @@ func runCorpus(path string, opts runOptions, w io.Writer, progress io.Writer) er
 	for i, s := range opts.sources {
 		infos[i] = sourceInfo{
 			ID: s.id, What: s.what, Version: s.version(), UnderTest: s.underTest, Events: s.events, Values: s.values,
+			RoundTrip: s.roundTrip,
 		}
 		c, err := openCache(opts.cache, s.id, infos[i].Version)
 		if err != nil {
@@ -116,7 +118,9 @@ func runCorpus(path string, opts runOptions, w io.Writer, progress io.Writer) er
 		wg.Go(func() {
 			for j := range jobs {
 				rec := &records[j.c]
-				if a, ok := caches[j.s].get(rec.SHA); ok {
+				// An answer cached before the source checked round trips lacks one, and is asked again.
+				if a, ok := caches[j.s].get(rec.SHA); ok &&
+					(!opts.sources[j.s].roundTrip || a.Verdict != consensus.Accept || a.RoundTrip != nil) {
 					rec.Answers[j.s] = a
 				} else {
 					a := timed(opts.sources[j.s], rec.Src, opts.timeout)

@@ -26,6 +26,8 @@ pre { background:var(--head); padding:8px; overflow:auto; white-space:pre-wrap; 
 .wrap { overflow-x:auto; }
 .s-acceptedagainsttherules { color:var(--diff); font-weight:600; }
 .s-rejectedsettled, .s-rejectedasdeclared, .s-rejectedexplained, .s-acceptedexplained, .s-differentexplained { color:var(--ok); font-style:italic; }
+.s-different, .s-unwritable, .s-unreadable { color:var(--diff); font-weight:600; }
+.s-same { color:var(--ok); }
 .s-acceptedtagged { color:var(--tag); font-weight:600; }
 .k-defect { color:var(--diff); font-weight:600; }
 th.help { text-decoration:underline dotted; text-underline-offset:3px; cursor:help; }
@@ -56,7 +58,7 @@ th.help { text-decoration:underline dotted; text-underline-offset:3px; cursor:he
 <tr><td class="name"><a href="{{$.Root}}case/{{$c.Short}}.html">{{$c.Name}}</a></td>
 <td class="name">{{range $c.Tags}}{{.}} {{end}}</td>
 <td>{{if $c.WellFormed}}accept{{else}}refuse{{end}}</td>
-{{range $i, $s := $.Head.Sources}}{{$v := status $c "verdict" $i}}{{$x := status $c "value" $i}}<td{{with why $c $i}} title="{{.Text}}"{{end}}><span class="{{cls $v}}">{{label $v}}</span>{{if or (eq $x "diff") (eq $x "diff, tagged") (eq $x "different, explained")}}<br><span class="{{cls $x}}"{{with valueWhy $c $i}} title="{{.Text}}"{{end}}>value {{$x}}</span>{{end}}</td>{{end}}
+{{range $i, $s := $.Head.Sources}}{{$v := status $c "verdict" $i}}{{$x := status $c "value" $i}}<td{{with why $c $i}} title="{{.Text}}"{{end}}><span class="{{cls $v}}">{{label $v}}</span>{{if or (eq $x "diff") (eq $x "diff, tagged") (eq $x "different, explained")}}<br><span class="{{cls $x}}"{{with valueWhy $c $i}} title="{{.Text}}"{{end}}>value {{$x}}</span>{{end}}{{$rt := status $c "roundtrip" $i}}{{if or (eq $rt "different") (eq $rt "unwritable") (eq $rt "unreadable")}}<br><span class="s-diff">round trip {{$rt}}</span>{{end}}</td>{{end}}
 </tr>
 {{end}}
 </table></div>

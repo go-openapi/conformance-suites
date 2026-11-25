@@ -59,6 +59,8 @@ import (
 	"io"
 
 	yaml "go.yaml.in/yaml/v3"
+
+	"github.com/go-openapi/conformance-suites/yaml/consensus"
 )
 
 // Version names what is being consulted, so a corpus entry that rests on this
@@ -123,3 +125,61 @@ func LoadJSON(src []byte) ([]string, error) {
 
 // ErrNotJSON says a document was read and JSON cannot write what came back.
 var ErrNotJSON = errors.New("yaml.v3: read it, and JSON cannot write it")
+
+// RoundTrip writes each document [Load] read back as YAML with yaml.Marshal, reads that with yaml.Unmarshal, and
+// compares the two values with [consensus.SameValue]. It returns nil when src does not load.
+func RoundTrip(src []byte) *consensus.RoundTrip {
+	docs, err := Load(src)
+	if err != nil {
+		return nil
+	}
+
+	for i, v := range docs {
+		if consensus.HasCycle(v) {
+			return &consensus.RoundTrip{Result: consensus.Cyclic, Doc: i}
+		}
+		out, err := marshal(v)
+		if err != nil {
+			return &consensus.RoundTrip{Result: consensus.Unwritable, Doc: i, Message: consensus.FirstLine(err.Error())}
+		}
+		var again any
+		if err := yaml.Unmarshal(out, &again); err != nil {
+			return &consensus.RoundTrip{
+				Result: consensus.Unreadable, Doc: i, YAML: cut(out), Message: consensus.FirstLine(err.Error()),
+			}
+		}
+		if !consensus.SameValue(v, again) {
+			return &consensus.RoundTrip{Result: consensus.Different, Doc: i, YAML: cut(out), Again: render(again)}
+		}
+	}
+
+	return &consensus.RoundTrip{Result: consensus.Same}
+}
+
+// marshal is yaml.Marshal with its panics turned into errors: it panics on a value it has no encoding for.
+func marshal(v any) (out []byte, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("yaml.v3: Marshal panicked: %v", r)
+		}
+	}()
+
+	return yaml.Marshal(v)
+}
+
+func cut(out []byte) string {
+	if len(out) > consensus.MaxRoundTripYAML {
+		return string(out[:consensus.MaxRoundTripYAML]) + "\n..."
+	}
+
+	return string(out)
+}
+
+// render writes a value as JSON where it has a JSON form, and as Go syntax where it does not.
+func render(v any) string {
+	if encoded, err := json.Marshal(v); err == nil {
+		return string(encoded)
+	}
+
+	return fmt.Sprintf("%#v", v)
+}

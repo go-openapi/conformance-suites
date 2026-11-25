@@ -44,6 +44,11 @@ const (
 	statusMinority  = "minority"
 	statusNoMajor   = "no majority"
 	statusNoEvents  = "no events"
+	statusRTSame    = "same"
+	statusRTDiff    = "different"
+	statusRTUnwrite = "unwritable"
+	statusRTUnread  = "unreadable"
+	statusRTCyclic  = "cyclic"
 )
 
 // question is one of the three things the report compares, and the summary table it gets on the index.
@@ -110,10 +115,13 @@ func countCorpus(cases []record) corpusStats {
 // questionsFor writes the three questions' tables for a corpus and a set of sources.
 func questionsFor(st corpusStats, sources []sourceInfo) []question {
 	all := make([]int, 0, len(sources))
-	var values []int
+	var values, trips []int
 	var noValues []string
 	for i, s := range sources {
 		all = append(all, i)
+		if s.RoundTrip {
+			trips = append(trips, i)
+		}
 		if s.Values {
 			values = append(values, i)
 		} else {
@@ -211,6 +219,33 @@ func questionsFor(st corpusStats, sources []sourceInfo) []question {
 				"counting the documents with no stated value.",
 			Sources: values,
 		},
+		{
+			ID:    "roundtrip",
+			Title: "Round trip",
+			Lead: []string{
+				"Each parser writes the value it read back as YAML with its own encoder, reads that again, and " +
+					"compares the two values in its own types, so an int that comes back as a float differs. " +
+					"yaml.v3 uses yaml.Marshal and yaml.Unmarshal; go-yaml uses codec.NewDecoder, codec.Marshal and " +
+					"codec.Unmarshal. The corpus states nothing here: the check is decode(encode(decode(d))) " +
+					"against decode(d), on every document the parser accepts.",
+			},
+			Bands: []band{
+				{Label: "documents the parser accepts", Columns: []column{
+					{statusRTSame, "same", "Every document comes back as the value first read."},
+					{statusRTDiff, "different", "A document comes back as another value. " +
+						"The case page shows what the encoder wrote and what came back."},
+					{statusRTUnwrite, "cannot write", "The encoder fails on a value the decoder built."},
+					{statusRTUnread, "cannot read back", "The decoder rejects what the encoder wrote."},
+					{statusRTCyclic, "cyclic", "The value holds a cycle, which the runner does not hand to the encoder."},
+				}},
+				{Columns: []column{
+					{statusRefused, "rejected", "The parser rejects the document, so there is nothing to write back."},
+					{statusError, "error", "The parser crashed, timed out, or wrote output the runner cannot read."},
+				}},
+			},
+			Split:   "",
+			Sources: trips,
+		},
 	}
 }
 
@@ -275,6 +310,7 @@ func judge(rec record, sources []sourceInfo, stances []parserStance) judged {
 	j.Status["verdict"] = make([]string, len(rec.Answers))
 	j.Status["value"] = make([]string, len(rec.Answers))
 	j.Status["events"] = make([]string, len(rec.Answers))
+	j.Status["roundtrip"] = make([]string, len(rec.Answers))
 
 	meaning := ""
 	if rec.Meaning != nil && !rec.Meaning.Cyclic && len(rec.Meaning.JSON) > 0 {
@@ -282,6 +318,7 @@ func judge(rec record, sources []sourceInfo, stances []parserStance) judged {
 	}
 
 	for i, a := range rec.Answers {
+		j.Status["roundtrip"][i] = roundTripStatus(sources[i], a)
 		if a.Verdict == consensus.Error {
 			j.Status["verdict"][i], j.Status["value"][i] = statusError, statusError
 			if !sources[i].Values {
@@ -335,6 +372,22 @@ func judge(rec record, sources []sourceInfo, stances []parserStance) judged {
 	}
 
 	return j
+}
+
+// roundTripStatus reads a source's round trip check.
+func roundTripStatus(s sourceInfo, a consensus.Answer) string {
+	switch {
+	case !s.RoundTrip:
+		return statusNoAnswer
+	case a.Verdict == consensus.Error:
+		return statusError
+	case a.Verdict != consensus.Accept:
+		return statusRefused
+	case a.RoundTrip == nil:
+		return statusNoAnswer
+	default:
+		return string(a.RoundTrip.Result)
+	}
 }
 
 // eventStatus places a source's events among the answer groups of the sources that wrote events.
@@ -398,7 +451,7 @@ type summary struct {
 
 func summarize(cases []judged, n int) summary {
 	s := summary{Counts: map[string][]map[string]int{}, Splits: map[string]int{}}
-	for _, q := range []string{"verdict", "value", "events"} {
+	for _, q := range []string{"verdict", "value", "events", "roundtrip"} {
 		s.Counts[q] = make([]map[string]int, n)
 		for i := range n {
 			s.Counts[q][i] = map[string]int{}
@@ -500,7 +553,7 @@ func buildGrid(title, kind string, cases []judged, n int, keys func(judged) []st
 
 // quietValues are the value and events statuses that make no case worth a page.
 var quietValues = []string{
-	statusRefused, statusNoValue, statusNotScored, statusNoAnswer,
+	statusRTSame, statusRTCyclic, statusRefused, statusNoValue, statusNotScored, statusNoAnswer,
 	statusAgree, statusOnly, statusMajority, statusMinority, statusNoMajor, statusNoEvents,
 }
 
@@ -695,9 +748,12 @@ func buildPages(h head, base view, judgedCases, notable []judged) map[string]vie
 	for i, s := range h.Sources {
 		v := base
 		v.Root, v.Source, v.Index, v.Title = "../", s, i, s.ID
-		var defects, open, explained []judged
+		var defects, open, explained, trips []judged
 		for _, c := range notable {
 			verdict, value := c.Status["verdict"][i], c.Status["value"][i]
+			if rt := c.Status["roundtrip"][i]; rt == statusRTDiff || rt == statusRTUnwrite || rt == statusRTUnread {
+				trips = append(trips, c)
+			}
 			switch {
 			case isDefect(verdict) || value == statusDiff || verdict == statusError:
 				defects = append(defects, c)
@@ -720,6 +776,11 @@ func buildPages(h head, base view, judgedCases, notable []judged) map[string]vie
 				Lead: "Cases carrying a tag the stance file says nothing about, which the parser reads " +
 					"otherwise than the corpus. Declare a stand on the tag to move them out of this list.",
 				Cases: open,
+			},
+			{
+				Title: fmt.Sprintf("Round trip: %d", len(trips)),
+				Lead:  "Cases whose value does not come back the same when the parser writes it as YAML and reads it again.",
+				Cases: trips,
 			},
 			{
 				Title: fmt.Sprintf("Explained: %d", len(explained)),

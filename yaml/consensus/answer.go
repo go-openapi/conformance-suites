@@ -68,6 +68,9 @@ type Answer struct {
 	// JSON holds the value of each document as canonical JSON (see [CanonicalJSON]), absent when the source builds
 	// no value. A document whose value has no JSON form is the empty string.
 	JSON []string `json:"json,omitempty"`
+	// RoundTrip is the check of decode(encode(decode(document))) against decode(document), absent when the source
+	// has no encoder the runner drives, or did not accept the document.
+	RoundTrip *RoundTrip `json:"roundTrip,omitempty"`
 	// Message is what the source said when it refused or failed, trimmed to its first line.
 	Message string `json:"message,omitempty"`
 	// ElapsedMS is how long the source took.

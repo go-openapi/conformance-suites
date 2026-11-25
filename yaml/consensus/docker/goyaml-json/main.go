@@ -35,6 +35,8 @@ type answer struct {
 	Docs      int      `json:"docs,omitempty"`
 	JSON      []string `json:"json,omitempty"`
 	Message   string   `json:"message,omitempty"`
+	// RoundTrip checks decode(encode(decode(document))) against decode(document), when the document was accepted.
+	RoundTrip *roundTrip `json:"roundTrip,omitempty"`
 }
 
 func main() {
@@ -73,7 +75,10 @@ func read(src []byte) answer {
 			return answer{Verdict: "refuse", RefusedBy: "loader", Docs: docs, Message: firstLine(err)}
 		}
 
-		return answer{Verdict: "accept", Docs: docs, JSON: []string{strings.TrimSpace(string(converted))}}
+		return answer{
+			Verdict: "accept", Docs: docs, JSON: []string{strings.TrimSpace(string(converted))},
+			RoundTrip: checkRoundTrip(src),
+		}
 	}
 
 	dec := codec.NewDecoder(bytes.NewReader(src), codec.UseStringKeys())
@@ -97,7 +102,7 @@ func read(src []byte) answer {
 		values = append(values, string(encoded))
 	}
 
-	return answer{Verdict: "accept", Docs: docs, JSON: values}
+	return answer{Verdict: "accept", Docs: docs, JSON: values, RoundTrip: checkRoundTrip(src)}
 }
 
 func firstLine(err error) string {

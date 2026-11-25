@@ -22,6 +22,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/go-openapi/conformance-suites/yaml/consensus"
 )
 
 // ErrNotInstalled says the goyaml-json program could not be found.
@@ -34,6 +36,8 @@ type Answer struct {
 	Docs      int      `json:"docs,omitempty"`
 	JSON      []string `json:"json,omitempty"`
 	Message   string   `json:"message,omitempty"`
+	// RoundTrip is goyaml-json's check of decode(encode(decode(document))).
+	RoundTrip *consensus.RoundTrip `json:"roundTrip,omitempty"`
 }
 
 // Command is the goyaml-json program this package runs: GOYAML_JSON when set, else goyaml-json on PATH.

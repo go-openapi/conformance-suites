@@ -28,9 +28,11 @@ type source struct {
 	underTest bool
 	// events and values say which answers the source can give: an event stream, a value.
 	events, values bool
-	available      func() bool
-	version        func() string
-	answer         func(ctx context.Context, src []byte) consensus.Answer
+	// roundTrip says the source writes each value back as YAML and reads it again.
+	roundTrip bool
+	available func() bool
+	version   func() string
+	answer    func(ctx context.Context, src []byte) consensus.Answer
 }
 
 func allSources() []source {
@@ -53,11 +55,12 @@ func allSources() []source {
 			available: yamlstar.Available, version: yamlstar.Version, answer: yamlstarAnswer,
 		},
 		{
-			id: "yaml.v3", what: "go.yaml.in/yaml/v3 (Go)", values: true,
+			id: "yaml.v3", what: "go.yaml.in/yaml/v3 (Go)", values: true, roundTrip: true,
 			available: func() bool { return true }, version: func() string { return goyaml.Version }, answer: yamlv3Answer,
 		},
 		{
 			id: "go-yaml", what: "github.com/go-openapi/go-yaml (Go), the parser under test", underTest: true, values: true,
+			roundTrip: true,
 			available: goopenapi.Available, version: goopenapi.Version, answer: goopenapiAnswer,
 		},
 	}
@@ -186,7 +189,7 @@ func yamlv3Answer(_ context.Context, src []byte) consensus.Answer {
 		return consensus.Answer{Verdict: consensus.Refuse, RefusedBy: stage, Message: consensus.FirstLine(err.Error())}
 	}
 
-	a := consensus.Answer{Verdict: consensus.Accept, Docs: len(docs)}
+	a := consensus.Answer{Verdict: consensus.Accept, Docs: len(docs), RoundTrip: goyaml.RoundTrip(src)}
 	rendered, err := goyaml.LoadJSON(src)
 	if err != nil {
 		// Read, and JSON has no spelling for a value: every document is left without one.
@@ -211,6 +214,7 @@ func goopenapiAnswer(ctx context.Context, src []byte) consensus.Answer {
 		Docs:      got.Docs,
 		JSON:      canonical(got.JSON),
 		Message:   got.Message,
+		RoundTrip: got.RoundTrip,
 	}
 }
 

@@ -186,3 +186,27 @@ func TestTheBuiltInStanceFilesLoad(t *testing.T) {
 		}
 	}
 }
+
+func TestRoundTripStatusReadsTheCheck(t *testing.T) {
+	trips := sourceInfo{ID: "g", RoundTrip: true}
+	for _, tc := range []struct {
+		name string
+		s    sourceInfo
+		a    consensus.Answer
+		want string
+	}{
+		{"no encoder", sourceInfo{ID: "p"}, consensus.Answer{Verdict: consensus.Accept}, statusNoAnswer},
+		{"a rejection", trips, consensus.Answer{Verdict: consensus.Refuse}, statusRefused},
+		{"an error", trips, consensus.Answer{Verdict: consensus.Error}, statusError},
+		{"not checked", trips, consensus.Answer{Verdict: consensus.Accept}, statusNoAnswer},
+		{"different", trips, consensus.Answer{
+			Verdict: consensus.Accept, RoundTrip: &consensus.RoundTrip{Result: consensus.Different},
+		}, statusRTDiff},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := roundTripStatus(tc.s, tc.a); got != tc.want {
+				t.Errorf("roundTripStatus = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
