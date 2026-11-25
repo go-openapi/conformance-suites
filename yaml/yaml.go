@@ -95,6 +95,11 @@ func yamlPatches() []grammar.Patch {
 			Apply:   patchFlowYAMLNode,
 		},
 		{
+			Rule:    "ns-flow-map-implicit-entry",
+			Because: "a JSON-like key carrying properties may take a value adjacent to its \":\"",
+			Apply:   patchFlowMapJSONKeyFirst,
+		},
+		{
 			Rule:    "s-l+block-collection",
 			Because: "properties belong to the collection only if the line ends after them",
 			Apply:   patchBlockCollectionProperties,

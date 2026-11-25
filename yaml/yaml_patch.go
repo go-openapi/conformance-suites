@@ -403,6 +403,46 @@ func patchFlowYAMLNode(body any) bool {
 	return true
 }
 
+// patchFlowMapJSONKeyFirst tries the JSON-like key entry of a flow mapping before the YAML key entry, and returns
+// whether it found the two.
+//
+// ns-flow-map-implicit-entry(n,c) offers ns-flow-map-yaml-key-entry, then c-ns-flow-map-empty-key-entry, then
+// c-ns-flow-map-json-key-entry. Since [patchFlowYAMLNode], a YAML key may be properties followed by any flow content, so
+// "! \"a\"" reads as one. Its value is c-ns-flow-map-separate-value, which refuses a ':' followed by a plain-safe
+// character, and a PEG's choice commits to the YAML entry before the mapping fails: "{! \"a\":b}" had no reading,
+// where 7.4.2 lets a JSON-like key take a value adjacent to the ':' and "{\"a\":b}" reads.
+//
+// Trying the JSON entry first loses no reading. Where both match, the key is the same text and
+// c-ns-flow-map-adjacent-value admits every value c-ns-flow-map-separate-value does. Where the key is plain or an
+// alias, c-flow-json-node fails at once. ns-s-block-map-implicit-key already puts the JSON key first.
+//
+// yaml-reference-parser and yamlstar refuse "{! \"a\":b}" too; libfyaml and go.yaml.in/yaml/v3 read it.
+func patchFlowMapJSONKeyFirst(body any) bool {
+	m, ok := body.(map[string]any)
+	if !ok {
+		return false
+	}
+
+	arms, ok := m["(any)"].([]any)
+	if !ok {
+		return false
+	}
+
+	for i, arm := range arms {
+		call, ok := arm.(map[string]any)
+		if !ok {
+			continue
+		}
+		if _, json := call["c-ns-flow-map-json-key-entry"]; json && i > 0 {
+			m["(any)"] = append([]any{arm}, slices.Delete(slices.Clone(arms), i, i+1)...)
+
+			return true
+		}
+	}
+
+	return false
+}
+
 // patchBlockCollectionProperties requires a comment line after a block
 // collection's own properties, and returns whether it found the properties.
 //

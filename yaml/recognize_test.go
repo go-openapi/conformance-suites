@@ -225,6 +225,15 @@ var streamCases = []struct {
 	{"an anchored flow sequence as a key", "{&a [a]: b}\n", true},
 	{"an anchored flow mapping", "&a {a: b}\n", true},
 
+	// A JSON-like key takes a value adjacent to its ':', with properties on it as without. The widened
+	// ns-flow-yaml-node reads such a key as a YAML key too, whose value needs a separation, and the choice committed to
+	// it: "{! \"a\":b}" had no reading until the JSON key entry was tried first.
+	{"a tagged quoted key with an adjacent value", "{! \"a\":b}\n", true},
+	{"an anchored quoted key with an adjacent value", "{&a 'a':b}\n", true},
+	{"a tagged flow key with an adjacent value", "{!!seq [a]:b}\n", true},
+	{"a tagged quoted key with a separated value", "{! \"a\": b}\n", true},
+	{"a colon inside a tagged plain key stays in the scalar", "{!!str a:b}\n", true},
+
 	// Properties are the collection's only if the line ends after them, and
 	// the alternatives matter: c-ns-properties reads a tag and an anchor
 	// together, so where only the tag belongs to the collection something has
