@@ -23,14 +23,14 @@
 
 <h2>Each parser</h2>
 <div class="wrap"><table>
-<tr><th class="name">parser</th><th class="name">verdict</th><th class="name">value</th><th class="name">round trip</th><th class="name">reason</th><th class="name">message</th><th>ms</th></tr>
+<tr><th class="name">parser</th><th class="name">verdict</th><th class="name">value</th><th class="name">round trip</th><th class="name">reason</th><th class="name">message</th><th title="How long the parser took on this document, in milliseconds. A parser run as a program counts its start-up: yaml.v3 runs in the runner's process, and the others start one process or more per document.">ms</th></tr>
 {{range $i, $s := .Head.Sources}}{{$a := answerOf $c $i}}
 <tr><td class="name">{{$s.ID}}</td>
 <td class="name"><span class="{{cls (status $c "verdict" $i)}}">{{label (status $c "verdict" $i)}}</span> <span class="muted">{{$a.Verdict}}{{if $a.RefusedBy}} by the {{$a.RefusedBy}}{{end}}</span></td>
 <td class="name"><span class="{{cls (status $c "value" $i)}}">{{status $c "value" $i}}</span></td>
 <td class="name"><span class="{{cls (status $c "roundtrip" $i)}}">{{status $c "roundtrip" $i}}</span>{{with $a.RoundTrip}}{{if or .YAML .Message}}<details><summary>document {{.Doc}}</summary>{{with .Message}}<p>{{.}}</p>{{end}}{{with .YAML}}<p class="muted">written</p><pre>{{.}}</pre>{{end}}{{with .Again}}<p class="muted">read back</p><pre>{{.}}</pre>{{end}}</details>{{end}}{{end}}</td>
 <td class="name">{{with why $c $i}}{{.Text}}{{end}}{{with valueWhy $c $i}}{{if why $c $i}}<br>{{end}}value: {{.Text}}{{end}}</td>
-<td class="name">{{$a.Message}}</td><td>{{$a.ElapsedMS}}</td></tr>
+<td class="name">{{$a.Message}}</td><td>{{ms $a.ElapsedMS}}</td></tr>
 {{end}}
 </table></div>
 {{template "bottom" .}}{{end}}

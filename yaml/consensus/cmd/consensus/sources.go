@@ -264,7 +264,7 @@ func timed(s source, src []byte, timeout time.Duration) consensus.Answer {
 		a = failed(context.DeadlineExceeded)
 	}
 	a.Source = s.id
-	a.ElapsedMS = time.Since(start).Milliseconds()
+	a.ElapsedMS = float64(time.Since(start).Microseconds()) / 1000
 
 	return a
 }
