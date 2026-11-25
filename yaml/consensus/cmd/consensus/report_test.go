@@ -96,6 +96,7 @@ func TestClassifyVerdictSplitsByReason(t *testing.T) {
 			{Tag: "key/duplicate", Stage: "parse", Settled: "reject", Because: "3.2.1.1"},
 			{Tag: "encoding/bom", Stage: "parse"},
 			{Tag: "key/not-a-scalar", Stage: "construct"},
+			{Tag: "anchor/alias-across-documents", Stage: "construct", Settled: "reject", Because: "3.2.2.2"},
 		}},
 		Sources: []sourceInfo{{ID: "p"}},
 	}
@@ -105,6 +106,7 @@ at: compose
 stands:
   key/duplicate: {stand: either, because: not checked}
   key/not-a-scalar: refuses
+  anchor/alias-across-documents: {stand: either, because: by posture}
 departures:
   - id: merge
     rejects: valid
@@ -146,6 +148,7 @@ departures:
 		{"a settled reject, rejected", valid("anchor/alias-undefined"), byComposer, statusSettled},
 		{"a declined rule, accepted", valid("key/duplicate"), accept, statusOK},
 		{"a tag past the stage", valid("key/not-a-scalar"), byParser(""), statusDiff},
+		{"a stand past the stage does not explain a rejection", valid("anchor/alias-across-documents"), byParser(""), statusDiff},
 		{"a refusal past the stage counts as accepting", valid(), byLoader, statusOK},
 		{"a refusal past the claim", record{WellFormed: true, Src: []byte("a")}, byComposer, statusUnscored},
 		{"a departure", valid(), byParser("could not find merge key"), statusExplained},
@@ -162,6 +165,13 @@ departures:
 			}
 		})
 	}
+
+	t.Run("a stand past the stage explains an acceptance", func(t *testing.T) {
+		got, why := classifyVerdict(valid("anchor/alias-across-documents"), accept, ps)
+		if got != statusOK || why == nil || why.Text != "anchor/alias-across-documents: by posture" {
+			t.Errorf("classifyVerdict = %q, %+v, want %q with the stand's because", got, why, statusOK)
+		}
+	})
 }
 
 func TestTheBuiltInStanceFilesLoad(t *testing.T) {
@@ -174,7 +184,7 @@ func TestTheBuiltInStanceFilesLoad(t *testing.T) {
 		"directive/yaml-version", "merge/key", "merge/sequence", "merge/written-in-place", "merge/into-non-mapping",
 		"merge/quoted", "merge/key-alone", "representation/binary", "representation/timestamp",
 		"representation/ordered-map", "representation/integer-wide", "representation/float-out-of-range",
-		"representation/float-inexact", "representation/float-non-finite",
+		"representation/float-inexact", "representation/float-non-finite", "anchor/alias-across-documents",
 	} {
 		h.Corpus.Vocabulary = append(h.Corpus.Vocabulary, suite.TagSpec{Tag: tag, Stage: "parse"})
 	}

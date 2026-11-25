@@ -54,8 +54,11 @@ func rejects(a consensus.Answer, at stance.Stage) bool {
 }
 
 // tagReasons walks a case's tags with a stance, as [stance.Table.Expect] does, and keeps what each finds.
+//
+// beyond holds the because of a stand on a tag decided past the parser's stage: the tag does not change the
+// expectation, but the stance file explains what the parser does with it.
 type tagReasons struct {
-	settled, declared, open *reason
+	settled, declared, open, beyond *reason
 }
 
 func readTags(rec record, ps parserStance) tagReasons {
@@ -71,6 +74,10 @@ func readTags(rec record, ps parserStance) tagReasons {
 	for _, name := range rec.Tags {
 		tag := stance.Tag(name)
 		if stage, _ := t.Speaks.Of(tag); stage > t.At {
+			if because, ok := ps.StandBecause[tag]; ok && out.beyond == nil {
+				out.beyond = &reason{Key: "beyond " + name, Text: name + ": " + because}
+			}
+
 			continue
 		}
 
@@ -133,6 +140,9 @@ func classifyVerdict(rec record, a consensus.Answer, ps parserStance) (string, *
 			// The parser declines the settled rule, so the acceptance is not held against it, and the report
 			// keeps the reason so that the reasons table can count what the parser does not check.
 			return statusOK, tags.open
+		}
+		if tags.beyond != nil {
+			return statusOK, tags.beyond
 		}
 
 		return statusOK, nil

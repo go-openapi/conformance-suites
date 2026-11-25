@@ -10,6 +10,11 @@ stands:
     stand: either
     because: >-
       fy-tool writes events without checking for a key written twice, and accepts most documents that write one
+  anchor/alias-across-documents:
+    stand: either
+    because: >-
+      libfyaml keeps one anchor table for the whole stream on purpose, so an alias may name an anchor of an earlier
+      document. The rule is decided at compose, past the parse fy-tool gives the verdict on
 
 # The Python binding returns numbers past the native ranges as their text.
 departures:
