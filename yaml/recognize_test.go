@@ -197,6 +197,12 @@ var streamCases = []struct {
 	{"mark after a suffix", "a: 1\n...\n" + bom + "b: 2\n", true},
 	{"two marks", bom + bom + "a: 1\n", true},
 
+	// A marker after a mark still ends the bare document before it, so "---"
+	// cannot be read as the start of a plain scalar.
+	{"marked marker before a flow indicator", bom + "--- ]\n", false},
+	{"marked marker before an indicator", bom + "---  %a\n", false},
+	{"marked marker before a scalar", bom + "--- a\n", true},
+
 	// Inside a document it is not a prefix, and nb-char excludes it from
 	// content, so there is nowhere for it to be.
 	{"mark inside a document", "---\n" + bom + "a: 1\n", false},

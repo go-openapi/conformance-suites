@@ -101,7 +101,10 @@ func (c *compiler) exclude(arg any) expr {
 			// c-forbidden begins with <start-of-line>, so it would reject the
 			// other positions itself. Skipping them is only to keep a scan of
 			// the whole document from costing a rule invocation per byte.
-			if p > 0 && s.src[p-1] != '\n' && s.src[p-1] != '\r' {
+			// The skip asks lineStartsAt, as <start-of-line> does: a marker
+			// after a byte order mark begins a line, and testing the byte
+			// before it would let "---" pass as plain text.
+			if !lineStartsAt(s.src, p) {
 				continue
 			}
 

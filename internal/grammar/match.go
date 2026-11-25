@@ -317,21 +317,24 @@ const byteOrderMark = "\xef\xbb\xbf"
 // comment goes through one of them. A marked "---" survived only because
 // c-directives-end is a literal that asks nobody.
 func startOfLine(s *state, e env) (env, bool) {
-	pos := s.pos
+	return e, lineStartsAt(s.src, s.pos)
+}
 
+// lineStartsAt reports whether pos begins a line of src, stepping back over any byte order marks first.
+func lineStartsAt(src []byte, pos int) bool {
 	// A prefix per document, and l-yaml-stream repeats the prefix, so more than
 	// one mark can stand here.
-	for pos >= len(byteOrderMark) && string(s.src[pos-len(byteOrderMark):pos]) == byteOrderMark {
+	for pos >= len(byteOrderMark) && string(src[pos-len(byteOrderMark):pos]) == byteOrderMark {
 		pos -= len(byteOrderMark)
 	}
 
 	if pos == 0 {
-		return e, true
+		return true
 	}
 
-	prev := s.src[pos-1]
+	prev := src[pos-1]
 
-	return e, prev == '\n' || prev == '\r'
+	return prev == '\n' || prev == '\r'
 }
 
 func endOfStream(s *state, e env) (env, bool) { return e, s.pos >= len(s.src) }
