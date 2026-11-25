@@ -21,9 +21,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"os"
 	"strings"
 
+	"github.com/go-openapi/go-yaml/ast"
 	"github.com/go-openapi/go-yaml/codec"
 	yamlerrors "github.com/go-openapi/go-yaml/errors"
 	"github.com/go-openapi/go-yaml/parser"
@@ -68,7 +70,7 @@ func read(src []byte) answer {
 		return answer{Verdict: "refuse", RefusedBy: stage, Message: firstLine(err)}
 	}
 
-	docs := len(file.Docs)
+	docs := documents(file)
 	if docs <= 1 {
 		converted, err := codec.ToJSON(src)
 		if err != nil {
@@ -92,7 +94,7 @@ func read(src []byte) answer {
 		if err != nil {
 			return answer{Verdict: "refuse", RefusedBy: "loader", Docs: docs, Message: firstLine(err)}
 		}
-		encoded, err := json.Marshal(v)
+		encoded, err := json.Marshal(numbersAsJSON(v))
 		if err != nil {
 			// The document was read, and JSON has no spelling for its value.
 			values = append(values, "")
@@ -103,6 +105,45 @@ func read(src []byte) answer {
 	}
 
 	return answer{Verdict: "accept", Docs: docs, JSON: values, RoundTrip: checkRoundTrip(src)}
+}
+
+// documents counts the documents of a stream. go-yaml's AST holds the directives in front of a document in a
+// DocumentNode of their own, so "%YAML 1.1\n---\nx\n" parses as two DocumentNode values and holds one document.
+func documents(file *ast.File) int {
+	n := 0
+	for _, doc := range file.Docs {
+		if _, directive := doc.Body.(*ast.DirectiveNode); !directive {
+			n++
+		}
+	}
+
+	return n
+}
+
+// numbersAsJSON replaces each *big.Float in a decoded value with a json.Number holding its digits:
+// encoding/json writes a *big.Float through MarshalText, as a string. A *big.Int has its own MarshalJSON and is
+// written as a number already.
+func numbersAsJSON(v any) any {
+	switch n := v.(type) {
+	case *big.Float:
+		return json.Number(n.Text('g', -1))
+	case map[string]any:
+		out := make(map[string]any, len(n))
+		for k, e := range n {
+			out[k] = numbersAsJSON(e)
+		}
+
+		return out
+	case []any:
+		out := make([]any, len(n))
+		for i, e := range n {
+			out[i] = numbersAsJSON(e)
+		}
+
+		return out
+	default:
+		return v
+	}
 }
 
 func firstLine(err error) string {
