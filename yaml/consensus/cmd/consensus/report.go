@@ -358,6 +358,7 @@ func judge(rec record, sources []sourceInfo, stances []parserStance) judged {
 			j.Status["value"][i] = statusNotScored
 		case a.Verdict != consensus.Accept:
 			j.Status["value"][i] = statusRefused
+			j.ValueWhy[i] = refusalReason(a, ps.Table.At, j.Status["verdict"][i], j.Why[i])
 		case a.JSON == nil:
 			j.Status["value"][i] = statusNoValue
 		default:

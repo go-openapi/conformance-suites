@@ -443,3 +443,20 @@ func verdictGroup(a consensus.Answer, at stance.Stage) (group, verdict string) {
 		return string(a.Verdict), string(a.Verdict)
 	}
 }
+
+// refusalReason explains why a parser builds no value for a valid document it rejects: the reason of its verdict,
+// under the verdict's column, so the value table's "refused" cell shows the same reasons as the verdict table.
+func refusalReason(a consensus.Answer, at stance.Stage, verdict string, why *reason) *reason {
+	if verdict == statusOK {
+		// A refusal past the stance's stage: the verdict table counts an acceptance.
+		return &reason{
+			Key:  "past the stage " + string(a.RefusedBy),
+			Text: "the " + string(a.RefusedBy) + " rejects the document past " + at.String() + ", where the verdict is given",
+		}
+	}
+	if why == nil {
+		why = &reasonUnexplained
+	}
+
+	return &reason{Key: "verdict " + verdict + " " + why.Key, Text: statusLabel(verdict) + ": " + why.Text, Kind: why.Kind}
+}

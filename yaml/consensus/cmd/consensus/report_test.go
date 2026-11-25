@@ -309,3 +309,24 @@ func TestGroupReasonsAddsUpToTheSummaryCell(t *testing.T) {
 		statusOK: {2, 2}, statusDiffTag: {1, 1}, statusDiff: {2, 2},
 	}, got, "one group per cell with a reason, each adding up to the cell; none for a correct rejection")
 }
+
+func TestRefusalReasonCarriesTheVerdictsReason(t *testing.T) {
+	declared := &reason{Key: "declared anchor/cyclic-meaning", Text: "anchor/cyclic-meaning: on purpose"}
+	byLoader := consensus.Answer{Verdict: consensus.Refuse, RefusedBy: consensus.Loader}
+
+	for _, tc := range []struct {
+		name, verdict string
+		why           *reason
+		want          string
+	}{
+		{"a declared refusal", statusDeclared, declared, "rejected, as declared: anchor/cyclic-meaning: on purpose"},
+		{"an unexplained refusal", statusDiff, nil, "rejected: " + reasonUnexplained.Text},
+		{"a refusal past the stage", statusOK, nil, "the loader rejects the document past parse, where the verdict is given"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := refusalReason(byLoader, stance.Parse, tc.verdict, tc.why); got.Text != tc.want {
+				t.Errorf("refusalReason = %q, want %q", got.Text, tc.want)
+			}
+		})
+	}
+}
