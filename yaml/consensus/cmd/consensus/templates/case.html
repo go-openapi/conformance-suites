@@ -8,8 +8,9 @@
 
 <h2>Corpus</h2>
 <table>
-<tr><td class="name">verdict</td><td class="name">{{if $c.WellFormed}}accept{{else}}refuse{{end}}{{if $c.Opaque}} (opaque bytes){{end}}</td></tr>
-<tr><td class="name">tags</td><td class="name">{{range $c.Tags}}<a href="../tag/{{pagename .}}.html">{{.}}</a> {{else}}none{{end}}</td></tr>
+<tr><td class="name">grammar</td><td class="name">{{if $c.WellFormed}}valid{{else}}invalid{{end}}{{if $c.Opaque}} (opaque bytes){{end}}{{if and $c.WellFormed $c.VerdictAt}}<span class="muted">, vouched for up to {{$c.VerdictAt}}</span>{{end}}</td></tr>
+{{range rules $c}}<tr><td class="name"><a href="../tag/{{pagename .Tag}}.html">{{.Tag}}</a></td><td class="name">{{if eq .Settled "reject"}}reject from {{.Stage}} on{{else if eq .Settled "accept"}}accept from {{.Stage}} on{{else}}open from {{.Stage}} on: each parser's stance decides{{end}}{{with .Because}}<span class="muted">, {{.}}</span>{{end}}</td></tr>
+{{else}}<tr><td class="name">tags</td><td class="name">none</td></tr>{{end}}
 <tr><td class="name">features</td><td class="name">{{range $c.Features}}{{.}} {{else}}none{{end}}</td></tr>
 <tr><td class="name">meaning ({{if $c.Meaning}}{{$c.Meaning.Under}}{{else}}none stated{{end}})</td><td class="name"><code>{{meaning $c}}</code></td></tr>
 </table>

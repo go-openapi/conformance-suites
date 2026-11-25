@@ -658,7 +658,8 @@ func writeReport(results, dir, stanceDir string, warn io.Writer) error {
 
 			return string(c.Meaning.JSON)
 		},
-		"cls": statusClass,
+		"cls":   statusClass,
+		"rules": func(c judged) []tagRule { return tagRules(h.Corpus.Vocabulary, c.Tags) },
 		"groupsIn": func(groups []reasonGroup, question, source string) []reasonGroup {
 			var out []reasonGroup
 			for _, g := range groups {

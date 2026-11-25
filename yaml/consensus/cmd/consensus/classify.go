@@ -406,3 +406,27 @@ var verdictLabels = map[string]string{
 	statusOK: "accepted", statusRefusedOK: "rejected, invalid", statusAccepted: "accepted, invalid",
 	statusDiff: "rejected", statusDiffTag: "rejected, tagged", statusUnscored: "rejected after the parse",
 }
+
+// tagRule is what the corpus header gives on one tag of a case: the stage that decides it, and the settled rule or
+// none.
+type tagRule struct {
+	Tag, Stage, Settled, Because string
+}
+
+// tagRules lists the header's entry for each of a case's tags, in the case's order.
+func tagRules(vocabulary []suite.TagSpec, tags []string) []tagRule {
+	out := make([]tagRule, 0, len(tags))
+	for _, tag := range tags {
+		for _, spec := range vocabulary {
+			if spec.Tag == tag {
+				out = append(out, tagRule{
+					Tag: tag, Stage: suite.StageOf(spec.Stage).String(), Settled: spec.Settled, Because: spec.Because,
+				})
+
+				break
+			}
+		}
+	}
+
+	return out
+}

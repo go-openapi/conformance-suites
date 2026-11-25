@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/go-openapi/testify/v2/assert"
@@ -86,6 +87,21 @@ func TestJudgeScoresValuesOnlyWhereTheCorpusStatesOne(t *testing.T) {
 				t.Errorf("value status = %q, want %q", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestTagRulesReadsTheHeader(t *testing.T) {
+	vocabulary := []suite.TagSpec{
+		{Tag: "anchor/alias-across-documents", Stage: "compose", Settled: "reject", Because: "3.2.2.2"},
+		{Tag: "encoding/bom", Stage: "parse"},
+	}
+	got := tagRules(vocabulary, []string{"encoding/bom", "anchor/alias-across-documents", "unknown"})
+	want := []tagRule{
+		{Tag: "encoding/bom", Stage: "parse"},
+		{Tag: "anchor/alias-across-documents", Stage: "compose", Settled: "reject", Because: "3.2.2.2"},
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("tagRules = %+v, want %+v", got, want)
 	}
 }
 
