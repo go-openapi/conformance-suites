@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/go-openapi/testify/v2/assert"
+
 	"github.com/go-openapi/conformance-suites/suite"
 	"github.com/go-openapi/conformance-suites/yaml/consensus"
 )
@@ -209,4 +211,36 @@ func TestRoundTripStatusReadsTheCheck(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGroupReasonsAddsUpToTheSummaryCell(t *testing.T) {
+	sources := []sourceInfo{{ID: "p", Values: true}}
+	mk := func(status string, why *reason) judged {
+		return judged{
+			Status: map[string][]string{"verdict": {status}, "value": {statusNotScored}},
+			Why:    []*reason{why}, ValueWhy: []*reason{nil},
+		}
+	}
+	declined := &reason{Key: "declined key/duplicate", Text: "key/duplicate: not checked"}
+	open := &reason{Key: "open encoding/bom", Text: "encoding/bom: p has not ruled on this"}
+	cases := []judged{
+		mk(statusOK, nil), mk(statusOK, declined), mk(statusDiffTag, open), mk(statusDiff, nil), mk(statusDiff, nil),
+		mk(statusRefusedOK, nil),
+	}
+	stances := []parserStance{{}}
+	sum := summarize(cases, 1)
+	qs := questionsFor(corpusStats{}, sources)
+	groups := groupReasons(countReasons(cases, sources, stances), sum, qs, sources)
+
+	got := map[string][2]int{}
+	for _, g := range groups {
+		covered := 0
+		for _, r := range g.Rows {
+			covered += r.Cases
+		}
+		got[g.Status] = [2]int{g.Count, covered + g.Rest}
+	}
+	assert.Equal(t, map[string][2]int{
+		statusOK: {2, 2}, statusDiffTag: {1, 1}, statusDiff: {2, 2},
+	}, got, "one group per cell with a reason, each adding up to the cell; none for a correct rejection")
 }

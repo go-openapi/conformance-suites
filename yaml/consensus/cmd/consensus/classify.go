@@ -6,7 +6,6 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"slices"
 	"sort"
 	"strings"
 
@@ -147,7 +146,7 @@ func classifyVerdict(rec record, a consensus.Answer, ps parserStance) (string, *
 		if stageOfRefusal(a.RefusedBy) > suite.StageOf(rec.VerdictAt) {
 			// The corpus vouches for the document only as far as it claims: a mutant's acceptance is the grammar's,
 			// and a composer or a loader may rightly refuse what the grammar accepts.
-			return statusUnscored, &reason{Key: "past the claim", Text: "the " + string(a.RefusedBy) +
+			return statusUnscored, &reason{Key: "past the claim " + string(a.RefusedBy), Text: "the " + string(a.RefusedBy) +
 				" rejects a document the corpus vouches for only up to " + suite.StageOf(rec.VerdictAt).String()}
 		}
 		for _, d := range ps.Rejecting {
@@ -202,7 +201,7 @@ func viewOf(a consensus.Answer) answerView {
 
 // reasonCount is how many cases one reason explains for one source, for the reasons tables.
 type reasonCount struct {
-	Source, Status, Key, Text, Kind string
+	Question, Source, Status, Key, Text, Kind string
 	// ID is the departure's id, empty for a settled rule or a declared stand.
 	ID    string
 	Cases int
@@ -228,78 +227,158 @@ func (r reasonCount) Example() string {
 	return text
 }
 
-// countReasons counts, per source, the cases each explaining reason covers: the settled rules, the declared stands
-// and the departures. Every departure appears, so one matching no case shows as zero.
+// countReasons counts, per source, the cases each reason covers, on the verdict and the value questions: the
+// settled rules, the declared stands, the departures, the open tags, the refusals past a case's claim, and a
+// reason that says nothing explains the case. Every departure appears, so one matching no case shows as zero.
 func countReasons(cases []judged, sources []sourceInfo, stances []parserStance) []reasonCount {
-	type key struct{ source, status, key string }
+	type key struct{ question, source, status, key string }
 	index := map[key]int{}
 	var out []reasonCount
-	add := func(k key, r reasonCount) {
+	add := func(k key, r reasonCount) *reasonCount {
 		if _, ok := index[k]; !ok {
 			index[k] = len(out)
 			out = append(out, r)
 		}
+
+		return &out[index[k]]
+	}
+	// idOf names source i; a results file always holds one answer per source, so the index is in range.
+	idOf := func(i int) string {
+		if i < len(sources) {
+			return sources[i].ID
+		}
+
+		return ""
 	}
 	for i, ps := range stances {
-		for _, d := range ps.Rejecting {
-			add(key{sources[i].ID, statusExplained, "departure " + d.ID}, reasonCount{
-				Source: sources[i].ID, Status: statusExplained, Key: "departure " + d.ID, ID: d.ID,
-				Text: d.ID + ": " + d.Because, Kind: d.Kind,
-			})
-		}
-		for _, d := range ps.Differing {
-			add(key{sources[i].ID, statusValExplained, "departure " + d.ID}, reasonCount{
-				Source: sources[i].ID, Status: statusValExplained, Key: "departure " + d.ID, ID: d.ID,
-				Text: d.ID + ": " + d.Because, Kind: d.Kind,
-			})
-		}
-		for _, d := range ps.Accepting {
-			add(key{sources[i].ID, statusAccExplained, "departure " + d.ID}, reasonCount{
-				Source: sources[i].ID, Status: statusAccExplained, Key: "departure " + d.ID, ID: d.ID,
-				Text: d.ID + ": " + d.Because, Kind: d.Kind,
-			})
+		for _, group := range []struct {
+			question, status string
+			deps             []*departure
+		}{
+			{"verdict", statusExplained, ps.Rejecting},
+			{"verdict", statusAccExplained, ps.Accepting},
+			{"value", statusValExplained, ps.Differing},
+		} {
+			for _, d := range group.deps {
+				add(key{group.question, idOf(i), group.status, "departure " + d.ID}, reasonCount{
+					Question: group.question, Source: idOf(i), Status: group.status, Key: "departure " + d.ID,
+					ID: d.ID, Text: d.ID + ": " + d.Because, Kind: d.Kind,
+				})
+			}
 		}
 	}
 	for _, c := range cases {
-		for i, st := range c.Status["value"] {
-			why := c.ValueWhy[i]
-			if why == nil || st != statusValExplained {
-				continue
-			}
-			k := key{sources[i].ID, st, why.Key}
-			add(k, reasonCount{Source: sources[i].ID, Status: st, Key: why.Key, Text: why.Text, Kind: why.Kind})
-			r := &out[index[k]]
-			r.Cases++
-			if len(r.Examples) < maxExamples {
-				r.Examples = append(r.Examples, c)
-			}
-		}
-		for i, st := range c.Status["verdict"] {
-			why := c.Why[i]
-			if why == nil || (!isExplained(st) && st != statusAgainst && !strings.HasPrefix(why.Key, "declined ")) {
-				continue
-			}
-			k := key{sources[i].ID, st, why.Key}
-			add(k, reasonCount{Source: sources[i].ID, Status: st, Key: why.Key, Text: why.Text, Kind: why.Kind})
-			r := &out[index[k]]
-			r.Cases++
-			if len(r.Examples) < maxExamples {
-				r.Examples = append(r.Examples, c)
+		for _, q := range []struct {
+			id  string
+			why []*reason
+		}{{"verdict", c.Why}, {"value", c.ValueWhy}} {
+			for i, st := range c.Status[q.id] {
+				why := reasonFor(q.id, st, q.why[i])
+				if why == nil {
+					continue
+				}
+				r := add(key{q.id, idOf(i), st, why.Key}, reasonCount{
+					Question: q.id, Source: idOf(i), Status: st, Key: why.Key, Text: why.Text, Kind: why.Kind,
+				})
+				r.Cases++
+				if len(r.Examples) < maxExamples {
+					r.Examples = append(r.Examples, c)
+				}
 			}
 		}
 	}
 	for i := range out {
-		sum := sha256.Sum256([]byte(out[i].Status + "\x00" + out[i].Key))
+		sum := sha256.Sum256([]byte(out[i].Question + "\x00" + out[i].Status + "\x00" + out[i].Key))
 		out[i].Page = "reason/" + pageName(out[i].Source) + "--" + hex.EncodeToString(sum[:6]) + ".html"
 	}
-	sort.SliceStable(out, func(a, b int) bool {
-		if out[a].Source != out[b].Source {
-			return slices.IndexFunc(sources, func(s sourceInfo) bool { return s.ID == out[a].Source }) <
-				slices.IndexFunc(sources, func(s sourceInfo) bool { return s.ID == out[b].Source })
-		}
+	sort.SliceStable(out, func(a, b int) bool { return out[a].Cases > out[b].Cases })
 
-		return out[a].Cases > out[b].Cases
-	})
+	return out
+}
+
+// Reasons for a status that has no reason of its own.
+var (
+	reasonUnexplained = reason{Key: "unexplained", Text: "nothing explains it: no settled rule, declared stand, " +
+		"departure or open tag covers the case. A defect in the parser or in the corpus."}
+	reasonError   = reason{Key: "error", Text: "the parser crashed, timed out, or wrote output the runner cannot read"}
+	reasonNoValue = reason{Key: "no value", Text: "the parser accepts the document and returns no value for it"}
+)
+
+// reasonFor is the reason a status is counted under in the reasons table, or nil for a status the table leaves out:
+// an agreement with the corpus that needs no reason, or a value the parser could not build because it rejected the
+// document, which the verdict table counts.
+func reasonFor(question, status string, why *reason) *reason {
+	switch {
+	case why != nil:
+		return why
+	case status == statusError:
+		return &reasonError
+	case status == statusDiff || status == statusAccepted:
+		return &reasonUnexplained
+	case question == "value" && status == statusNoValue:
+		return &reasonNoValue
+	default:
+		return nil
+	}
+}
+
+// reasonGroup is one cell of the verdict or the value table, and the reasons behind its count.
+type reasonGroup struct {
+	Question, Source, Status string
+	// Count is the cell's count in the summary table.
+	Count int
+	// Rows are the reasons, most cases first.
+	Rows []reasonCount
+	// Rest counts the cases of the cell that need no reason: the agreements with the corpus around a declined rule.
+	Rest int
+}
+
+// Anchor is the group's id in the index, which the summary table's cell links to.
+func (g reasonGroup) Anchor() string { return anchorOf(g.Question, g.Source, g.Status) }
+
+func anchorOf(question, source, status string) string {
+	return "r-" + question + "-" + pageName(source) + "-" + strings.TrimPrefix(statusClass(status), "s-")
+}
+
+// Span is how many table rows the group takes, for the merged cells.
+func (g reasonGroup) Span() int {
+	n := len(g.Rows)
+	if g.Rest > 0 {
+		n++
+	}
+
+	return max(n, 1)
+}
+
+// groupReasons lays the reasons out by summary cell: for each question, each source and each column, in the
+// summary table's order, the cell's count and the reasons behind it. A cell with no reason to give, such as
+// "rejected" on an invalid document, gets no group.
+func groupReasons(reasons []reasonCount, sum summary, questions []question, sources []sourceInfo) []reasonGroup {
+	var out []reasonGroup
+	for _, q := range questions {
+		if q.ID != "verdict" && q.ID != "value" {
+			continue
+		}
+		for _, i := range q.Sources {
+			for _, col := range q.Columns() {
+				g := reasonGroup{
+					Question: q.ID, Source: sources[i].ID, Status: col.Status, Count: sum.Counts[q.ID][i][col.Status],
+				}
+				covered := 0
+				for _, r := range reasons {
+					if r.Question == q.ID && r.Source == g.Source && r.Status == g.Status {
+						g.Rows = append(g.Rows, r)
+						covered += r.Cases
+					}
+				}
+				if len(g.Rows) == 0 {
+					continue
+				}
+				g.Rest = g.Count - covered
+				out = append(out, g)
+			}
+		}
+	}
 
 	return out
 }

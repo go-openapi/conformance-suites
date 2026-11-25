@@ -579,9 +579,11 @@ func pageName(name string) string {
 
 // view is what every page template receives.
 type view struct {
-	Head      head
-	Reasons   []reasonCount
-	Reason    reasonCount
+	Head    head
+	Reasons []reasonCount
+	Reason  reasonCount
+	// Groups are the reasons laid out by summary cell.
+	Groups    []reasonGroup
 	Stances   []parserStance
 	Stats     corpusStats
 	Questions []question
@@ -636,36 +638,10 @@ func writeReport(results, dir, stanceDir string, warn io.Writer) error {
 		"answerOf": func(c judged, i int) consensus.Answer { return c.Answers[i] },
 		"why":      func(c judged, i int) *reason { return c.Why[i] },
 		"label":    statusLabel,
-		"withReasons": func(v view, reasons []reasonCount) view {
-			v.Reasons = reasons
-
-			return v
-		},
-		"reasonsIn": func(reasons []reasonCount, question string) []reasonCount {
-			var out []reasonCount
-			for _, r := range reasons {
-				isValue := r.Status == statusValExplained
-				if (question == "value" && isValue) || (question == "verdict" && !isValue) {
-					out = append(out, r)
-				}
-			}
-
-			return out
-		},
 		"valueWhy": func(c judged, i int) *reason { return c.ValueWhy[i] },
-		"reasonsOf": func(reasons []reasonCount, source string) []reasonCount {
-			var out []reasonCount
-			for _, r := range reasons {
-				if r.Source == source {
-					out = append(out, r)
-				}
-			}
-
-			return out
-		},
-		"lines": func(s []string) string { return strings.Join(s, "\n") },
-		"doc":   document,
-		"size":  size,
+		"lines":    func(s []string) string { return strings.Join(s, "\n") },
+		"doc":      document,
+		"size":     size,
 		"rows": func(v view, cases []judged, truncated int) view {
 			v.Cases, v.Truncated = cases, truncated
 
@@ -682,7 +658,31 @@ func writeReport(results, dir, stanceDir string, warn io.Writer) error {
 
 			return string(c.Meaning.JSON)
 		},
-		"cls": func(s string) string { return "s-" + strings.NewReplacer(" ", "", ",", "", "/", "").Replace(s) },
+		"cls": statusClass,
+		"groupsIn": func(groups []reasonGroup, question, source string) []reasonGroup {
+			var out []reasonGroup
+			for _, g := range groups {
+				if (question == "" || g.Question == question) && (source == "" || g.Source == source) {
+					out = append(out, g)
+				}
+			}
+
+			return out
+		},
+		"withGroups": func(v view, groups []reasonGroup) view {
+			v.Groups = groups
+
+			return v
+		},
+		"anchor": func(groups []reasonGroup, question, source, status string) string {
+			for _, g := range groups {
+				if g.Question == question && g.Source == source && g.Status == status {
+					return g.Anchor()
+				}
+			}
+
+			return ""
+		},
 	}).ParseFS(templates, "templates/*.html")
 	if err != nil {
 		return err
@@ -690,7 +690,11 @@ func writeReport(results, dir, stanceDir string, warn io.Writer) error {
 
 	sum := summarize(judgedCases, n)
 	st := countCorpus(cases)
-	base := view{Head: h, Stats: st, Questions: questionsFor(st, h.Sources), Summary: sum, Reasons: reasons, Stances: stances}
+	qs := questionsFor(st, h.Sources)
+	base := view{
+		Head: h, Stats: st, Questions: qs, Summary: sum, Reasons: reasons, Stances: stances,
+		Groups: groupReasons(reasons, sum, qs, h.Sources),
+	}
 
 	var notable []judged
 	for _, c := range judgedCases {
@@ -865,6 +869,11 @@ func writePage(tmpl *template.Template, name, path string, v view) error {
 	}
 
 	return w.Flush()
+}
+
+// statusClass is the CSS class of a status.
+func statusClass(s string) string {
+	return "s-" + strings.NewReplacer(" ", "", ",", "", "/", "").Replace(s)
 }
 
 // size writes a number of bytes in the largest unit that keeps it above one.

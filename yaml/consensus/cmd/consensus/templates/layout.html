@@ -45,9 +45,10 @@ th.help { text-decoration:underline dotted; text-underline-offset:3px; cursor:he
 
 {{define "reasons"}}
 <div class="wrap"><table>
-<tr><th class="name">parser</th><th class="name">column</th><th class="name">reason</th><th class="name">kind</th><th>cases</th></tr>
-{{range .Reasons}}<tr><td class="name">{{.Source}}</td><td class="name"><span class="{{cls .Status}}">{{label .Status}}</span></td><td class="name">{{.Text}}</td><td class="name{{if eq .Kind "defect"}} k-defect{{end}}">{{.Kind}}</td><td class="{{if not .Cases}}s-diff{{end}}">{{if .Examples}}<a href="{{$.Root}}{{.Page}}" title="{{.Example}}">{{.Cases}}</a>{{else}}{{.Cases}}{{end}}</td></tr>
-{{end}}
+<tr><th class="name">parser</th><th class="name">column</th><th>count</th><th class="name">reason</th><th class="name">kind</th><th>cases</th></tr>
+{{range $g := .Groups}}{{range $k, $r := $g.Rows}}<tr{{if eq $k 0}} id="{{$g.Anchor}}"{{end}}>{{if eq $k 0}}<td class="name" rowspan="{{$g.Span}}">{{$g.Source}}</td><td class="name" rowspan="{{$g.Span}}"><span class="{{cls $g.Status}}">{{label $g.Status}}</span></td><td rowspan="{{$g.Span}}"><b>{{$g.Count}}</b></td>{{end}}<td class="name">{{$r.Text}}</td><td class="name{{if eq $r.Kind "defect"}} k-defect{{end}}">{{$r.Kind}}</td><td class="{{if not $r.Cases}}s-diff{{end}}">{{if $r.Examples}}<a href="{{$.Root}}{{$r.Page}}" title="{{$r.Example}}">{{$r.Cases}}</a>{{else}}{{$r.Cases}}{{end}}</td></tr>
+{{end}}{{if $g.Rest}}<tr class="muted"><td class="name">the rest agree with the corpus and need no reason</td><td></td><td>{{$g.Rest}}</td></tr>
+{{end}}{{end}}
 </table></div>
 {{end}}
 

@@ -32,15 +32,15 @@ counts.</p>
 <tr><th class="name" rowspan="2">parser</th>{{range $q.Bands}}<th colspan="{{len .Columns}}">{{.Label}}</th>{{end}}</tr>
 <tr>{{range $q.Columns}}<th class="help {{cls .Status}}" title="{{.Help}}">{{.Label}}</th>{{end}}</tr>
 {{range $i := $q.Sources}}{{$s := index $.Head.Sources $i}}
-<tr><td class="name">{{$s.ID}}</td>{{range $col := $q.Columns}}{{$n := count $.Summary $q.ID $i $col.Status}}<td class="{{if $n}}{{cls $col.Status}}{{else}}zero{{end}}">{{$n}}</td>{{end}}</tr>
+<tr><td class="name">{{$s.ID}}</td>{{range $col := $q.Columns}}{{$n := count $.Summary $q.ID $i $col.Status}}<td class="{{if $n}}{{cls $col.Status}}{{else}}zero{{end}}">{{with and $n (anchor $.Groups $q.ID $s.ID $col.Status)}}<a href="#{{.}}">{{$n}}</a>{{else}}{{$n}}{{end}}</td>{{end}}</tr>
 {{end}}
 </table></div>
 {{if $q.Split}}<p>{{printf $q.Split (index $.Summary.Splits $q.ID)}}</p>{{end}}
-{{with reasonsIn $.Reasons $q.ID}}<h3>Reasons</h3>
-<p>{{if eq $q.ID "verdict"}}The settled rules, declared stands and departures behind the explained columns, and the
-settled rules or stands a parser accepts against.{{else}}The departures behind the explained column.{{end}} A
-departure comes from the parser's stance file. Each count links to a page listing the first cases, and its tooltip
-shows the first document.</p>
-{{template "reasons" (withReasons $ .)}}{{end}}
+{{with groupsIn $.Groups $q.ID ""}}<h3>Reasons</h3>
+<p>One group for each cell of the table above, with the cell's count and the reasons behind it: a settled rule, a
+declared stand, a departure from the parser's stance file, an open tag, or nothing at all. Click a count above to
+jump to its group. Each case count links to a page listing the first cases, and its tooltip shows the first
+document.</p>
+{{template "reasons" (withGroups $ .)}}{{end}}
 {{end}}
 {{template "bottom" .}}{{end}}
