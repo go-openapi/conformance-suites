@@ -16,12 +16,19 @@ th { background:var(--head); }
 td.name, th.name { text-align:left; }
 pre { background:var(--head); padding:8px; overflow:auto; white-space:pre-wrap; word-break:break-all; margin:0.3em 0; }
 .muted { color:var(--muted); }
-.s-ok, .s-refused-correctly, .s-unanimous { color:var(--ok); }
+.s-ok, .s-refused-correctly, .s-agree, .s-majority { color:var(--ok); }
+.s-minority { color:var(--tag); font-weight:600; }
+.s-nomajority { color:var(--split); font-weight:600; }
 .s-diff, .s-accepted-wrongly, .s-error { color:var(--diff); font-weight:600; }
 .s-difftagged { color:var(--tag); font-weight:600; }
 .s-split { color:var(--split); font-weight:600; }
 .zero { color:var(--muted); }
 .wrap { overflow-x:auto; }
+.s-acceptedagainsttherules { color:var(--diff); font-weight:600; }
+.s-rejectedsettled, .s-rejectedasdeclared, .s-rejectedexplained, .s-acceptedexplained, .s-differentexplained { color:var(--ok); font-style:italic; }
+.s-acceptedtagged { color:var(--tag); font-weight:600; }
+.k-defect { color:var(--diff); font-weight:600; }
+th.help { text-decoration:underline dotted; text-underline-offset:3px; cursor:help; }
 </style>
 </head>
 <body>
@@ -34,6 +41,14 @@ pre { background:var(--head); padding:8px; overflow:auto; white-space:pre-wrap; 
 </html>
 {{end}}
 
+{{define "reasons"}}
+<div class="wrap"><table>
+<tr><th class="name">parser</th><th class="name">column</th><th class="name">reason</th><th class="name">kind</th><th>cases</th></tr>
+{{range .Reasons}}<tr><td class="name">{{.Source}}</td><td class="name"><span class="{{cls .Status}}">{{label .Status}}</span></td><td class="name">{{.Text}}</td><td class="name{{if eq .Kind "defect"}} k-defect{{end}}">{{.Kind}}</td><td class="{{if not .Cases}}s-diff{{end}}">{{if .Examples}}<a href="{{$.Root}}{{.Page}}" title="{{.Example}}">{{.Cases}}</a>{{else}}{{.Cases}}{{end}}</td></tr>
+{{end}}
+</table></div>
+{{end}}
+
 {{define "caserows"}}
 <div class="wrap"><table>
 <tr><th class="name">case</th><th class="name">tags</th><th>corpus</th>{{range .Head.Sources}}<th>{{.ID}}</th>{{end}}</tr>
@@ -41,9 +56,9 @@ pre { background:var(--head); padding:8px; overflow:auto; white-space:pre-wrap; 
 <tr><td class="name"><a href="{{$.Root}}case/{{$c.Short}}.html">{{$c.Name}}</a></td>
 <td class="name">{{range $c.Tags}}{{.}} {{end}}</td>
 <td>{{if $c.WellFormed}}accept{{else}}refuse{{end}}</td>
-{{range $i, $s := $.Head.Sources}}{{$v := status $c "verdict" $i}}{{$x := status $c "value" $i}}<td><span class="{{cls $v}}">{{$v}}</span>{{if or (eq $x "diff") (eq $x "diff, tagged")}}<br><span class="{{cls $x}}">value {{$x}}</span>{{end}}</td>{{end}}
+{{range $i, $s := $.Head.Sources}}{{$v := status $c "verdict" $i}}{{$x := status $c "value" $i}}<td{{with why $c $i}} title="{{.Text}}"{{end}}><span class="{{cls $v}}">{{label $v}}</span>{{if or (eq $x "diff") (eq $x "diff, tagged") (eq $x "different, explained")}}<br><span class="{{cls $x}}"{{with valueWhy $c $i}} title="{{.Text}}"{{end}}>value {{$x}}</span>{{end}}</td>{{end}}
 </tr>
 {{end}}
 </table></div>
-{{if .Truncated}}<p class="muted">and {{.Truncated}} more.</p>{{end}}
+{{if .Truncated}}<p class="muted">The first {{len .Cases}} are listed, and {{.Truncated}} more are not. <a href="{{.Root}}tags.html">By tag</a> counts every case.</p>{{end}}
 {{end}}

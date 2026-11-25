@@ -1,7 +1,7 @@
 {{define "grid.html"}}{{template "top" .}}
 <h1>{{.Grid.Title}}</h1>
-<p>Each cell is the number of cases a source reads otherwise than the corpus: the verdict, then the value. "split"
-counts the cases the sources answer differently among themselves, on any question.</p>
+<p>Each cell counts the cases a parser reads otherwise than the corpus: first the verdict, then the value. The
+"split" column counts the cases on which the parsers give different verdicts or build different values.</p>
 <div class="wrap"><table>
 <tr><th class="name">{{.Grid.Kind}}</th><th>cases</th>{{range .Head.Sources}}<th>{{.ID}}<br><span class="muted">verdict · value</span></th>{{end}}<th class="s-split">split</th></tr>
 {{range $f := .Grid.Families}}

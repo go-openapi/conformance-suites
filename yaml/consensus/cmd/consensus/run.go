@@ -37,6 +37,8 @@ type corpusInfo struct {
 	Cases      int             `json:"cases"`
 	Vocabulary []suite.TagSpec `json:"vocabulary"`
 	Readings   []string        `json:"readings,omitempty"`
+	// Ref names the conformance-suites commit or tag the corpus file comes from, when the run is given one.
+	Ref string `json:"ref,omitempty"`
 }
 
 type sourceInfo struct {
@@ -69,6 +71,8 @@ type runOptions struct {
 	cache   string
 	// limit stops after the first limit cases, for a quick look; zero reads them all.
 	limit int
+	// corpusRef is the conformance-suites commit or tag the corpus file comes from, recorded in the results.
+	corpusRef string
 }
 
 // runCorpus runs every case of the corpus at path through every source and writes the results to w.
@@ -142,7 +146,7 @@ func runCorpus(path string, opts runOptions, w io.Writer, progress io.Writer) er
 	if err := enc.Encode(head{
 		Corpus: corpusInfo{
 			Grammar: h.Grammar, Digest: h.Digest, Generator: h.Generator, Tier: h.Tier, Cases: h.Cases,
-			Vocabulary: h.Vocabulary, Readings: h.Readings,
+			Vocabulary: h.Vocabulary, Readings: h.Readings, Ref: opts.corpusRef,
 		},
 		Sources: infos, Started: started.UTC(), Elapsed: time.Since(started).Round(time.Second).String(),
 	}); err != nil {

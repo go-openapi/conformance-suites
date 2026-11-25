@@ -5,7 +5,9 @@ package main
 
 import (
 	"bufio"
+	"crypto/sha256"
 	"embed"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -23,7 +25,7 @@ import (
 //go:embed templates/*.html
 var templates embed.FS
 
-// The statuses a source gets against the corpus.
+// The statuses a source gets on each question.
 const (
 	statusOK        = "ok"
 	statusDiff      = "diff"
@@ -33,28 +35,195 @@ const (
 	statusRefusedOK = "refused-correctly"
 	statusAccepted  = "accepted-wrongly"
 	statusRefused   = "refused"
+	statusNoValue   = "no value"
+	statusNotScored = "not scored"
 	statusNoAnswer  = "n/i"
-	statusUnanimous = "unanimous"
-	statusSplit     = "split"
+	statusAgree     = "agree"
+	statusOnly      = "only"
+	statusMajority  = "majority"
+	statusMinority  = "minority"
+	statusNoMajor   = "no majority"
+	statusNoEvents  = "no events"
 )
 
-// question is one of the three things the report compares.
+// question is one of the three things the report compares, and the summary table it gets on the index.
 type question struct {
 	ID, Title string
-	// Statuses are the columns of the summary table, in order.
-	Statuses []string
+	// Lead is the paragraphs above the table.
+	Lead []string
+	// Bands group the columns of the table under a heading each.
+	Bands []band
+	// Split is the sentence below the table, with a %d for the number of split cases.
+	Split string
+	// Sources are the indexes of the sources the table lists.
+	Sources []int
 }
 
-var questions = []question{
-	{ID: "verdict", Title: "Verdict, against the corpus", Statuses: []string{
-		statusOK, statusDiff, statusDiffTag, statusUnscored, statusRefusedOK, statusAccepted, statusError,
-	}},
-	{ID: "value", Title: "Value, against the meaning the corpus states", Statuses: []string{
-		statusOK, statusDiff, statusDiffTag, statusRefused, statusUnscored, statusNoAnswer, statusError,
-	}},
-	{ID: "events", Title: "Events, between the sources (the corpus holds none)", Statuses: []string{
-		statusUnanimous, statusSplit, statusNoAnswer,
-	}},
+// Columns are the columns of every band, in order.
+func (q question) Columns() []column {
+	var out []column
+	for _, b := range q.Bands {
+		out = append(out, b.Columns...)
+	}
+
+	return out
+}
+
+// band is a group of columns under one heading, which may be empty.
+type band struct {
+	Label   string
+	Columns []column
+}
+
+// column is one status, with the label the table shows and the tooltip that explains it.
+type column struct {
+	Status, Label, Help string
+}
+
+// corpusStats counts the corpus's documents by what the corpus states about them.
+type corpusStats struct {
+	Documents, Valid, Invalid, WithValue, Tagged int
+	Bytes                                        int64
+}
+
+func countCorpus(cases []record) corpusStats {
+	var st corpusStats
+	for _, c := range cases {
+		st.Documents++
+		st.Bytes += int64(len(c.Src))
+		if c.WellFormed {
+			st.Valid++
+			if c.Meaning != nil {
+				st.WithValue++
+			}
+		} else {
+			st.Invalid++
+		}
+		if len(c.Tags) > 0 {
+			st.Tagged++
+		}
+	}
+
+	return st
+}
+
+// questionsFor writes the three questions' tables for a corpus and a set of sources.
+func questionsFor(st corpusStats, sources []sourceInfo) []question {
+	all := make([]int, 0, len(sources))
+	var values []int
+	var noValues []string
+	for i, s := range sources {
+		all = append(all, i)
+		if s.Values {
+			values = append(values, i)
+		} else {
+			noValues = append(noValues, s.ID)
+		}
+	}
+	leftOut := func(ids []string, one, many string) string {
+		switch len(ids) {
+		case 0:
+			return ""
+		case 1:
+			return fmt.Sprintf(" %s %s, so the table leaves it out.", ids[0], one)
+		default:
+			return fmt.Sprintf(" %s %s, so the table leaves them out.", joinList(ids), many)
+		}
+	}
+
+	const stage = " A parser is answerable up to the stage its stance file names. A rejection past it, " +
+		"such as libfyaml's Python binding failing after fy-tool parsed the document, counts as accepting."
+
+	return []question{
+		{
+			ID:    "verdict",
+			Title: "Verdict",
+			Lead: []string{
+				"Verdict on a YAML document being valid or invalid. " + fmt.Sprintf(
+					"Each parser accepts or rejects each of the %d documents, and the corpus grammar states "+
+						"which is correct.", st.Documents),
+				"A rejection of a valid document, or an acceptance of an invalid one, is split by its reason: " +
+					"a rule the specification settles beyond the grammar, a position the parser declares in its " +
+					"stance file, a known departure the stance file explains, or a tag marking an open question. " +
+					"What is left is a defect in the parser or in the corpus. " +
+					"The table below the counts lists the reasons.",
+			},
+			Bands: []band{
+				{Label: fmt.Sprintf("valid documents: %d", st.Valid), Columns: []column{
+					{statusOK, "accepted", "The parser accepts a document the corpus holds valid." + stage},
+					{statusAgainst, "accepted, against the rules", "The parser accepts a document that the grammar " +
+						"allows and that a settled rule, or the parser's own declared stance, rejects."},
+					{statusSettled, "rejected, settled", "The parser rejects a document the grammar allows " +
+						"and a rule the specification settles forbids: an alias naming no anchor, a key written twice."},
+					{statusDeclared, "rejected, as declared", "The parser rejects a document carrying a tag " +
+						"its stance file declares it refuses."},
+					{statusUnscored, "rejected after the parse", "The parser's composer or loader rejects " +
+						"a mutant. The corpus vouches for a mutant's syntax only, so the report does not score this."},
+					{statusExplained, "rejected, explained", "The parser rejects a valid document, " +
+						"and a departure in its stance file explains why."},
+					{statusDiffTag, "rejected, tagged", "The parser rejects a valid document carrying a tag " +
+						"its stance file says nothing about. The tag marks a question the specification leaves open."},
+					{statusDiff, "rejected", "The parser rejects a valid document, and nothing explains it. " +
+						"Each of these is a defect in the parser or in the corpus."},
+				}},
+				{Label: fmt.Sprintf("invalid documents: %d", st.Invalid), Columns: []column{
+					{statusRefusedOK, "rejected", "The parser rejects a document the corpus holds invalid."},
+					{statusAccExplained, "accepted, explained", "The parser accepts an invalid document, " +
+						"and a departure in its stance file explains why."},
+					{statusAccTagged, "accepted, tagged", "The parser accepts an invalid document carrying a tag " +
+						"its stance file says nothing about, or bytes the corpus cannot decode."},
+					{statusAccepted, "accepted", "The parser accepts an invalid document, and nothing explains it. " +
+						"Each of these is a defect in the parser or in the corpus." + stage},
+				}},
+				{Columns: []column{
+					{statusError, "error", "The parser crashed, timed out, or wrote output the runner cannot read."},
+				}},
+			},
+			Split:   "The parsers do not all give the same verdict on %d documents.",
+			Sources: all,
+		},
+		{
+			ID:    "value",
+			Title: "Value",
+			Lead: []string{
+				fmt.Sprintf("The value a parser builds from a valid document, written as JSON, against the value "+
+					"the corpus states. The corpus states a value for %d of its %d valid documents, "+
+					"and the table counts those.", st.WithValue, st.Valid) +
+					leftOut(noValues, "builds no values", "build no values"),
+			},
+			Bands: []band{
+				{Label: fmt.Sprintf("documents with a stated value: %d", st.WithValue), Columns: []column{
+					{statusOK, "same", "The parser builds the value the corpus states."},
+					{statusValExplained, "different, explained", "The parser builds another value, " +
+						"and a departure in its stance file explains why."},
+					{statusDiffTag, "different, tagged", "The parser builds another value, on a document " +
+						"carrying a tag its stance file says nothing about. The tag marks a question the " +
+						"specification leaves open."},
+					{statusDiff, "different", "The parser builds another value, and nothing explains it. " +
+						"Each of these is a defect in the parser or in the corpus."},
+					{statusRefused, "rejected", "The parser rejects the document, so it builds no value. " +
+						"The verdict table counts these too."},
+					{statusNoValue, "no value", "The parser accepts the document and returns no value for it."},
+					{statusError, "error", "The parser crashed, timed out, or wrote output the runner cannot read."},
+				}},
+			},
+			Split: "The parsers build different values for %d documents, " +
+				"counting the documents with no stated value.",
+			Sources: values,
+		},
+	}
+}
+
+// joinList joins ids as English does: "a", "a and b", "a, b and c".
+func joinList(ids []string) string {
+	switch len(ids) {
+	case 0:
+		return ""
+	case 1:
+		return ids[0]
+	default:
+		return strings.Join(ids[:len(ids)-1], ", ") + " and " + ids[len(ids)-1]
+	}
 }
 
 // judged is a record with the comparisons made.
@@ -67,18 +236,27 @@ type judged struct {
 	Groups map[string][]consensus.Group
 	// Split names the questions the sources answer differently.
 	Split map[string]bool
+	// Why is the reason for each source's verdict status, by source index, nil where none is needed.
+	Why []*reason
+	// ValueWhy is the reason for each source's value status.
+	ValueWhy []*reason
 }
 
-// Short is the case's file name in the report.
-func (j judged) Short() string { return j.SHA[:16] }
+// Short is the case's file name in the report: a digest of its name, because two cases may hold the same bytes and
+// a seed and its mutant may be scored differently.
+func (j judged) Short() string {
+	sum := sha256.Sum256([]byte(j.Name))
+
+	return hex.EncodeToString(sum[:8])
+}
 
 func (j judged) notable() bool {
-	if len(j.Split) > 0 {
+	if j.Split["verdict"] || j.Split["value"] {
 		return true
 	}
 	for _, statuses := range j.Status {
 		for _, s := range statuses {
-			if s == statusDiff || s == statusDiffTag || s == statusAccepted || s == statusError {
+			if s != statusOK && s != statusRefusedOK && !slices.Contains(quietValues, s) {
 				return true
 			}
 		}
@@ -87,15 +265,17 @@ func (j judged) notable() bool {
 	return false
 }
 
-func judge(rec record, sources []sourceInfo) judged {
-	j := judged{record: rec, Status: map[string][]string{}, Groups: map[string][]consensus.Group{}, Split: map[string]bool{}}
+func judge(rec record, sources []sourceInfo, stances []parserStance) judged {
+	j := judged{
+		record: rec, Status: map[string][]string{}, Groups: map[string][]consensus.Group{}, Split: map[string]bool{},
+		Why: make([]*reason, len(rec.Answers)), ValueWhy: make([]*reason, len(rec.Answers)),
+	}
 
 	verdicts, events, values := map[string]string{}, map[string]string{}, map[string]string{}
 	j.Status["verdict"] = make([]string, len(rec.Answers))
 	j.Status["value"] = make([]string, len(rec.Answers))
 	j.Status["events"] = make([]string, len(rec.Answers))
 
-	tagged := len(rec.Tags) > 0
 	meaning := ""
 	if rec.Meaning != nil && !rec.Meaning.Cyclic && len(rec.Meaning.JSON) > 0 {
 		meaning, _ = consensus.CanonicalJSON(string(rec.Meaning.JSON))
@@ -103,7 +283,10 @@ func judge(rec record, sources []sourceInfo) judged {
 
 	for i, a := range rec.Answers {
 		if a.Verdict == consensus.Error {
-			j.Status["verdict"][i], j.Status["value"][i], j.Status["events"][i] = statusError, statusError, statusNoAnswer
+			j.Status["verdict"][i], j.Status["value"][i] = statusError, statusError
+			if !sources[i].Values {
+				j.Status["value"][i] = statusNoAnswer
+			}
 
 			continue
 		}
@@ -111,41 +294,31 @@ func judge(rec record, sources []sourceInfo) judged {
 		// The verdict is the parser's: a refusal after a clean parse is the parser accepting.
 		parsed := a.Verdict == consensus.Accept || a.RefusedBy == consensus.Loader
 		verdicts[a.Source] = map[bool]string{true: "accept", false: "refuse"}[parsed]
-		switch {
-		case rec.WellFormed && parsed:
-			j.Status["verdict"][i] = statusOK
-		case rec.WellFormed && a.RefusedBy == consensus.Composer && stages[rec.VerdictAt] < stages["compose"]:
-			// The source's composer refused a document whose acceptance the corpus claims for parsing only, as a
-			// mutant's is: an alias naming no anchor, a key written twice. Table.Expect leaves such a case undecided
-			// for a consumer that composes, and so does the report.
-			j.Status["verdict"][i] = statusUnscored
-		case rec.WellFormed && tagged:
-			j.Status["verdict"][i] = statusDiffTag
-		case rec.WellFormed:
-			j.Status["verdict"][i] = statusDiff
-		case parsed:
-			j.Status["verdict"][i] = statusAccepted
-		default:
-			j.Status["verdict"][i] = statusRefusedOK
+		var ps parserStance
+		if i < len(stances) {
+			ps = stances[i]
 		}
+		j.Status["verdict"][i], j.Why[i] = classifyVerdict(rec, a, ps)
 
 		if parsed && len(a.Events) > 0 {
 			events[a.Source] = strings.Join(a.Events, "\n")
 		}
+		if a.Verdict == consensus.Accept && a.JSON != nil {
+			values[a.Source] = strings.Join(a.JSON, "\n")
+		}
 
+		// The value is scored on the valid documents the corpus states a value for, and on no other.
 		switch {
 		case !sources[i].Values:
 			j.Status["value"][i] = statusNoAnswer
+		case !rec.WellFormed || rec.Meaning == nil:
+			j.Status["value"][i] = statusNotScored
 		case a.Verdict != consensus.Accept:
 			j.Status["value"][i] = statusRefused
-			if !rec.WellFormed {
-				j.Status["value"][i] = statusUnscored
-			}
 		case a.JSON == nil:
-			j.Status["value"][i] = statusNoAnswer
+			j.Status["value"][i] = statusNoValue
 		default:
-			values[a.Source] = strings.Join(a.JSON, "\n")
-			j.Status["value"][i] = valueStatus(rec, a, meaning, tagged)
+			j.Status["value"][i], j.ValueWhy[i] = classifyValue(rec, a, ps, valueStatus(rec, a, meaning))
 		}
 	}
 
@@ -158,27 +331,55 @@ func judge(rec record, sources []sourceInfo) judged {
 	}
 
 	for i, a := range rec.Answers {
-		if _, answered := events[a.Source]; !answered {
-			j.Status["events"][i] = statusNoAnswer
-
-			continue
-		}
-		j.Status["events"][i] = statusUnanimous
-		if j.Split["events"] {
-			j.Status["events"][i] = statusSplit
-		}
+		j.Status["events"][i] = eventStatus(sources[i], a, j.Groups["events"])
 	}
 
 	return j
 }
 
-// stages orders the stages a verdict may be claimed at.
-var stages = map[string]int{"": 0, "parse": 0, "compose": 1, "construct": 2}
+// eventStatus places a source's events among the answer groups of the sources that wrote events.
+func eventStatus(s sourceInfo, a consensus.Answer, groups []consensus.Group) string {
+	if !s.Events {
+		return statusNoAnswer
+	}
+	own, largest, atLargest := 0, 0, 0
+	for _, g := range groups {
+		n := len(g.Sources)
+		if slices.Contains(g.Sources, a.Source) {
+			own = n
+		}
+		switch {
+		case n > largest:
+			largest, atLargest = n, 1
+		case n == largest:
+			atLargest++
+		}
+	}
 
-func valueStatus(rec record, a consensus.Answer, meaning string, tagged bool) string {
 	switch {
-	case rec.Meaning == nil || len(a.JSON) != 1:
-		return statusUnscored
+	case a.Verdict == consensus.Error:
+		return statusError
+	case own == 0:
+		return statusNoEvents
+	case len(groups) == 1 && own == 1:
+		return statusOnly
+	case len(groups) == 1:
+		return statusAgree
+	case atLargest > 1:
+		return statusNoMajor
+	case own == largest:
+		return statusMajority
+	default:
+		return statusMinority
+	}
+}
+
+// valueStatus scores the value a source built against the value the corpus states.
+//
+// The corpus states a value for one document, so a source that read a different number of documents differs.
+func valueStatus(rec record, a consensus.Answer, meaning string) string {
+	switch {
+	case len(a.JSON) != 1:
 	case rec.Meaning.Cyclic:
 		if a.JSON[0] == "" {
 			return statusOK
@@ -186,10 +387,6 @@ func valueStatus(rec record, a consensus.Answer, meaning string, tagged bool) st
 	case a.JSON[0] == meaning:
 		return statusOK
 	}
-	if tagged {
-		return statusDiffTag
-	}
-
 	return statusDiff
 }
 
@@ -201,10 +398,10 @@ type summary struct {
 
 func summarize(cases []judged, n int) summary {
 	s := summary{Counts: map[string][]map[string]int{}, Splits: map[string]int{}}
-	for _, q := range questions {
-		s.Counts[q.ID] = make([]map[string]int, n)
+	for _, q := range []string{"verdict", "value", "events"} {
+		s.Counts[q] = make([]map[string]int, n)
 		for i := range n {
-			s.Counts[q.ID][i] = map[string]int{}
+			s.Counts[q][i] = map[string]int{}
 		}
 	}
 	for _, c := range cases {
@@ -271,7 +468,7 @@ func buildGrid(title, kind string, cases []judged, n int, keys func(judged) []st
 					r.Value[i]++
 				}
 			}
-			if len(c.Split) > 0 {
+			if c.Split["verdict"] || c.Split["value"] {
 				r.Splits++
 			}
 		}
@@ -301,8 +498,26 @@ func buildGrid(title, kind string, cases []judged, n int, keys func(judged) []st
 	return g
 }
 
+// quietValues are the value and events statuses that make no case worth a page.
+var quietValues = []string{
+	statusRefused, statusNoValue, statusNotScored, statusNoAnswer,
+	statusAgree, statusOnly, statusMajority, statusMinority, statusNoMajor, statusNoEvents,
+}
+
+// isDiff says whether a status is a difference from the corpus that nothing explains, or that an open tag may.
 func isDiff(status string) bool {
-	return status == statusDiff || status == statusDiffTag || status == statusAccepted
+	return isDefect(status) || status == statusDiffTag || status == statusAccTagged
+}
+
+// isDefect says whether a status is a difference from the corpus that nothing explains.
+func isDefect(status string) bool {
+	return status == statusDiff || status == statusAccepted || status == statusAgainst
+}
+
+// isExplained says whether a status is a difference from the grammar that a rule, a stance or a departure explains.
+func isExplained(status string) bool {
+	return status == statusSettled || status == statusDeclared || status == statusExplained ||
+		status == statusAccExplained || status == statusValExplained
 }
 
 func pageName(name string) string {
@@ -312,6 +527,10 @@ func pageName(name string) string {
 // view is what every page template receives.
 type view struct {
 	Head      head
+	Reasons   []reasonCount
+	Reason    reasonCount
+	Stances   []parserStance
+	Stats     corpusStats
 	Questions []question
 	Summary   summary
 	Grid      grid
@@ -322,19 +541,38 @@ type view struct {
 	Index     int
 	Root      string
 	Truncated int
+	// Sections split a source's page: the differences on untagged cases, then those on tagged cases.
+	Sections []section
+}
+
+// section is a titled list of cases on a page.
+type section struct {
+	Title, Lead string
+	Cases       []judged
+	Truncated   int
 }
 
 // writeReport reads a results file and writes the report into dir.
-func writeReport(results, dir string) error {
+func writeReport(results, dir, stanceDir string, warn io.Writer) error {
 	h, cases, err := readResults(results)
 	if err != nil {
 		return err
 	}
 	n := len(h.Sources)
+	stances, err := loadStances(stanceDir, h)
+	if err != nil {
+		return err
+	}
 
 	judgedCases := make([]judged, len(cases))
 	for i, c := range cases {
-		judgedCases[i] = judge(c, h.Sources)
+		judgedCases[i] = judge(c, h.Sources, stances)
+	}
+	reasons := countReasons(judgedCases, h.Sources, stances)
+	for _, r := range reasons {
+		if r.Cases == 0 {
+			fmt.Fprintf(warn, "consensus: %s: departure %s matches no case\n", r.Source, r.ID)
+		}
 	}
 
 	tmpl, err := template.New("").Funcs(template.FuncMap{
@@ -343,8 +581,43 @@ func writeReport(results, dir string) error {
 		"split":    func(c judged, q string) bool { return c.Split[q] },
 		"groups":   func(c judged, q string) []consensus.Group { return c.Groups[q] },
 		"answerOf": func(c judged, i int) consensus.Answer { return c.Answers[i] },
-		"lines":    func(s []string) string { return strings.Join(s, "\n") },
-		"doc":      document,
+		"why":      func(c judged, i int) *reason { return c.Why[i] },
+		"label":    statusLabel,
+		"withReasons": func(v view, reasons []reasonCount) view {
+			v.Reasons = reasons
+
+			return v
+		},
+		"reasonsIn": func(reasons []reasonCount, question string) []reasonCount {
+			var out []reasonCount
+			for _, r := range reasons {
+				isValue := r.Status == statusValExplained
+				if (question == "value" && isValue) || (question == "verdict" && !isValue) {
+					out = append(out, r)
+				}
+			}
+
+			return out
+		},
+		"valueWhy": func(c judged, i int) *reason { return c.ValueWhy[i] },
+		"reasonsOf": func(reasons []reasonCount, source string) []reasonCount {
+			var out []reasonCount
+			for _, r := range reasons {
+				if r.Source == source {
+					out = append(out, r)
+				}
+			}
+
+			return out
+		},
+		"lines": func(s []string) string { return strings.Join(s, "\n") },
+		"doc":   document,
+		"size":  size,
+		"rows": func(v view, cases []judged, truncated int) view {
+			v.Cases, v.Truncated = cases, truncated
+
+			return v
+		},
 		"pagename": pageName,
 		"meaning": func(c judged) string {
 			if c.Meaning == nil {
@@ -363,7 +636,8 @@ func writeReport(results, dir string) error {
 	}
 
 	sum := summarize(judgedCases, n)
-	base := view{Head: h, Questions: questions, Summary: sum}
+	st := countCorpus(cases)
+	base := view{Head: h, Stats: st, Questions: questionsFor(st, h.Sources), Summary: sum, Reasons: reasons, Stances: stances}
 
 	var notable []judged
 	for _, c := range judgedCases {
@@ -383,6 +657,8 @@ func writeReport(results, dir string) error {
 			page = "grid.html"
 		case strings.HasPrefix(name, "case/"):
 			page = "case.html"
+		case strings.HasPrefix(name, "reason/"):
+			page = "reason.html"
 		}
 		if err := writePage(tmpl, page, filepath.Join(dir, name), v); err != nil {
 			return err
@@ -419,16 +695,58 @@ func buildPages(h head, base view, judgedCases, notable []judged) map[string]vie
 	for i, s := range h.Sources {
 		v := base
 		v.Root, v.Source, v.Index, v.Title = "../", s, i, s.ID
+		var defects, open, explained []judged
 		for _, c := range notable {
-			if isDiff(c.Status["verdict"][i]) || isDiff(c.Status["value"][i]) || c.Status["verdict"][i] == statusError {
-				v.Cases = append(v.Cases, c)
+			verdict, value := c.Status["verdict"][i], c.Status["value"][i]
+			switch {
+			case isDefect(verdict) || value == statusDiff || verdict == statusError:
+				defects = append(defects, c)
+			case isDiff(verdict) || isDiff(value):
+				open = append(open, c)
+			case isExplained(verdict):
+				explained = append(explained, c)
 			}
 		}
-		v.Cases, v.Truncated = capped(v.Cases)
+		// Every unexplained difference is listed: each is a defect in the source or in the corpus.
+		v.Sections = append(v.Sections, section{
+			Title: fmt.Sprintf("Unexplained: %d", len(defects)),
+			Lead: "Cases the parser reads otherwise than the corpus, or fails on, " +
+				"with no settled rule, declared stand, departure or open tag to explain it.",
+			Cases: defects,
+		})
+		for _, sec := range []section{
+			{
+				Title: fmt.Sprintf("Open questions: %d", len(open)),
+				Lead: "Cases carrying a tag the stance file says nothing about, which the parser reads " +
+					"otherwise than the corpus. Declare a stand on the tag to move them out of this list.",
+				Cases: open,
+			},
+			{
+				Title: fmt.Sprintf("Explained: %d", len(explained)),
+				Lead:  "Cases a settled rule, a declared stand or a departure explains. The reasons table counts them.",
+				Cases: explained,
+			},
+		} {
+			sec.Cases, sec.Truncated = capped(sec.Cases)
+			v.Sections = append(v.Sections, sec)
+		}
 		pages["source/"+pageName(s.ID)+".html"] = v
 	}
 
-	for _, c := range notable {
+	cases := notable
+	for _, r := range base.Reasons {
+		if len(r.Examples) == 0 {
+			continue
+		}
+		v := base
+		v.Root, v.Reason, v.Title = "../", r, r.Source+": "+statusLabel(r.Status)
+		v.Cases, v.Truncated = r.Examples, r.Cases-len(r.Examples)
+		pages[r.Page] = v
+		// A reason may cover a case that is otherwise unremarkable, such as an acceptance under a declined rule.
+		cases = append(cases, r.Examples...)
+	}
+
+	for _, c := range cases {
 		v := base
 		v.Root, v.Case, v.Title = "../", c, c.Name
 		pages["case/"+c.Short()+".html"] = v
@@ -486,6 +804,18 @@ func writePage(tmpl *template.Template, name, path string, v view) error {
 	}
 
 	return w.Flush()
+}
+
+// size writes a number of bytes in the largest unit that keeps it above one.
+func size(n int64) string {
+	switch {
+	case n >= 1<<20:
+		return fmt.Sprintf("%.1f MiB", float64(n)/(1<<20))
+	case n >= 1<<10:
+		return fmt.Sprintf("%.1f KiB", float64(n)/(1<<10))
+	default:
+		return fmt.Sprintf("%d bytes", n)
+	}
 }
 
 // document writes a document for a page: as text when it is UTF-8, quoted byte by byte when it is not.

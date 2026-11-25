@@ -1,30 +1,46 @@
 {{define "index.html"}}{{template "top" .}}
 <h1>YAML consensus</h1>
-<p>How the YAML implementations below read the {{.Head.Corpus.Tier}} corpus ({{.Head.Corpus.Cases}} cases, grammar
-<code>{{.Head.Corpus.Grammar}}</code>). This is not a vote: the report shows where the implementations take different
-routes through the same document, and scores each against the corpus alone.</p>
+<p>Each of the {{len .Head.Sources}} YAML parsers below reads every document of the {{.Head.Corpus.Tier}} corpus. The report scores each
+parser against the corpus, and compares the parsers with each other. Hover over a column heading to see what it
+counts.</p>
 
-<h2>Sources</h2>
+<h2>Corpus</h2>
+<table>
+<tr><td class="name">tier</td><td class="name">{{.Head.Corpus.Tier}}</td></tr>
+<tr><td class="name">documents</td><td class="name">{{.Stats.Documents}}: {{.Stats.Valid}} valid, {{.Stats.Invalid}} invalid</td></tr>
+<tr><td class="name">with a stated value</td><td class="name">{{.Stats.WithValue}}</td></tr>
+<tr><td class="name">carrying a tag</td><td class="name">{{.Stats.Tagged}}, under {{len .Head.Corpus.Vocabulary}} tags</td></tr>
+<tr><td class="name">size</td><td class="name">{{size .Stats.Bytes}}</td></tr>
+<tr><td class="name">grammar</td><td class="name">{{.Head.Corpus.Grammar}}</td></tr>
+<tr><td class="name">generator</td><td class="name">{{.Head.Corpus.Generator}}</td></tr>
+<tr><td class="name">conformance-suites</td><td class="name">{{with .Head.Corpus.Ref}}{{.}}{{else}}<span class="muted">not recorded: pass <code>-corpus-ref</code> to <code>consensus run</code></span>{{end}}</td></tr>
+<tr><td class="name">digest</td><td class="name"><code>{{.Head.Corpus.Digest}}</code></td></tr>
+</table>
+
+<h2>Tested parsers</h2>
 <table>
 <tr><th class="name">id</th><th class="name">implementation</th><th class="name">version</th></tr>
-{{range .Head.Sources}}<tr><td class="name"><a href="source/{{.ID}}.html">{{.ID}}</a>{{if .UnderTest}} (under test){{end}}</td><td class="name">{{.What}}</td><td class="name">{{.Version}}</td></tr>
+{{range .Head.Sources}}<tr><td class="name"><a href="source/{{pagename .ID}}.html">{{.ID}}</a>{{if .UnderTest}} (under test){{end}}</td><td class="name">{{.What}}</td><td class="name">{{.Version}}</td></tr>
 {{end}}
 </table>
 
 {{range $q := .Questions}}
 <h2>{{$q.Title}}</h2>
+{{range $q.Lead}}<p>{{.}}</p>
+{{end}}
 <div class="wrap"><table>
-<tr><th class="name">source</th>{{range $q.Statuses}}<th class="{{cls .}}">{{.}}</th>{{end}}</tr>
-{{range $i, $s := $.Head.Sources}}
-<tr><td class="name">{{$s.ID}}</td>{{range $st := $q.Statuses}}{{$n := count $.Summary $q.ID $i $st}}<td class="{{if $n}}{{cls $st}}{{else}}zero{{end}}">{{$n}}</td>{{end}}</tr>
+<tr><th class="name" rowspan="2">parser</th>{{range $q.Bands}}<th colspan="{{len .Columns}}">{{.Label}}</th>{{end}}</tr>
+<tr>{{range $q.Columns}}<th class="help {{cls .Status}}" title="{{.Help}}">{{.Label}}</th>{{end}}</tr>
+{{range $i := $q.Sources}}{{$s := index $.Head.Sources $i}}
+<tr><td class="name">{{$s.ID}}</td>{{range $col := $q.Columns}}{{$n := count $.Summary $q.ID $i $col.Status}}<td class="{{if $n}}{{cls $col.Status}}{{else}}zero{{end}}">{{$n}}</td>{{end}}</tr>
 {{end}}
 </table></div>
-<p class="muted">Cases the sources answer differently: {{index $.Summary.Splits $q.ID}}.</p>
+{{if $q.Split}}<p>{{printf $q.Split (index $.Summary.Splits $q.ID)}}</p>{{end}}
+{{with reasonsIn $.Reasons $q.ID}}<h3>Reasons</h3>
+<p>{{if eq $q.ID "verdict"}}The settled rules, declared stands and departures behind the explained columns, and the
+settled rules or stands a parser accepts against.{{else}}The departures behind the explained column.{{end}} A
+departure comes from the parser's stance file. Each count links to a page listing the first cases, and its tooltip
+shows the first document.</p>
+{{template "reasons" (withReasons $ .)}}{{end}}
 {{end}}
-
-<p class="muted">A verdict is the parser's: a refusal by the step that builds a value comes after a clean parse, so
-it counts as the parser accepting. "diff, tagged" is a difference on a case carrying a tag, which may be a position
-the implementation takes on that tag; "diff" is a difference on a case with none. "unscored" is a refusal by a
-source's composer (an alias naming no anchor, a key written twice) of a case that claims its verdict for parsing
-only, as a mutant does.</p>
 {{template "bottom" .}}{{end}}

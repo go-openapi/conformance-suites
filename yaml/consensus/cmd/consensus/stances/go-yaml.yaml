@@ -1,0 +1,67 @@
+# The stance of go-openapi/go-yaml, the parser under test, as the consensus image reads it.
+#
+# The stands come from GoYAML in go-yaml's internal/testintegration/yamlcorpus/stance.go, which describes the decoder
+# into any. goyaml-json reads with parser.ParseBytes and writes JSON with codec.ToJSON instead, so a difference
+# between the two readers shows here as an unexplained case.
+parser: go-yaml
+at: construct
+because: goyaml-json reads with parser.ParseBytes, then writes JSON with codec.ToJSON
+
+stands:
+  key/not-a-scalar: refuses
+  anchor/cyclic-meaning: refuses
+  directive/yaml-minor-version: refuses
+  tag/bool-not-a-boolean: refuses
+  tag/timestamp-not-a-date: refuses
+  tag/binary-not-base64: refuses
+  tag/int-not-an-integer: refuses
+  tag/float-not-a-number: refuses
+  tag/null-not-null: refuses
+  tag/omap-not-a-sequence-of-pairs: refuses
+  tag/kind-mismatch: refuses
+  tag/local: accepts
+  tag/named-handle: accepts
+  tag/percent-escape: accepts
+  directive/yaml-version: accepts
+  merge/key: accepts
+  merge/sequence: accepts
+  merge/written-in-place: accepts
+  merge/into-non-mapping: accepts
+  merge/quoted: accepts
+  merge/key-alone: accepts
+  representation/binary: accepts
+  representation/timestamp: accepts
+  representation/ordered-map: accepts
+  representation/integer-wide: accepts
+  representation/float-out-of-range: accepts
+  representation/float-inexact: accepts
+  representation/float-non-finite: accepts
+  # GoYAML accepts these, because the decoder into any holds them. codec.ToJSON writes some and rejects others,
+  # so goyaml-json guarantees neither; the json-cannot-write departure explains its rejections.
+  json/not-representable: either
+
+departures:
+  - id: merge-key-without-mapping
+    rejects: valid
+    match:
+      message: 'could not find merge key'
+    kind: position
+    because: >-
+      go-yaml reads a !!merge key only when a mapping, an alias to one, or a sequence of them follows,
+      and these mutants leave the merge key with nothing to merge
+  - id: json-cannot-write
+    rejects: valid
+    match:
+      message: 'JSON has no number for|cannot be a JSON key|cannot be a key in a Go map|reads as two'
+    kind: position
+    because: >-
+      codec.ToJSON rejects a value JSON cannot hold: .inf, .nan, a collection as a key; the corpus tags
+      some of these documents json/not-representable and leaves others untagged
+  - id: json-member-collision
+    rejects: valid
+    match:
+      message: 'two keys write the JSON member'
+    kind: position
+    because: >-
+      codec.ToJSON writes each key as a JSON member name and rejects two distinct keys that write the same name,
+      such as 1 and "1"

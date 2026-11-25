@@ -1,0 +1,13 @@
+# The stance of YAMLStar's own parser and loader.
+parser: yamlstar
+at: construct
+because: the yaml CLI of YAMLStar parses with its own reference parser and loads the value
+
+departures:
+  - id: float-past-double
+    differs: value
+    match: {tags: [representation/float-out-of-range]}
+    kind: position
+    because: >-
+      floats are doubles: one too small comes back as 0, and one too large as Infinity, which JSON cannot write,
+      so the runner holds no value for it

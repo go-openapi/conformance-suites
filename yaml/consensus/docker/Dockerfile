@@ -15,7 +15,7 @@
 #
 #   docker run --rm conformance-consensus check
 #   docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/work" conformance-consensus \
-#     run -cache /work/.consensus-cache /work/yaml-compact.jsonl.gz > results.jsonl
+#     run -cache /work/.consensus-cache -corpus-ref "$(git rev-parse --short HEAD)" /work/yaml-compact.jsonl.gz > results.jsonl
 #   docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/work" conformance-consensus \
 #     report -o /work/report /work/results.jsonl
 #

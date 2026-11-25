@@ -1,0 +1,8 @@
+{{define "reason.html"}}{{template "top" .}}
+{{$r := .Reason}}
+<h1>{{$r.Source}}: <span class="{{cls $r.Status}}">{{label $r.Status}}</span></h1>
+<p>{{$r.Text}}</p>
+<p>{{if $r.Kind}}A departure of kind <b class="{{if eq $r.Kind "defect"}}k-defect{{end}}">{{$r.Kind}}</b> in the stance file of
+<a href="{{.Root}}source/{{pagename $r.Source}}.html">{{$r.Source}}</a>. {{end}}It covers {{$r.Cases}} cases.</p>
+{{template "caserows" .}}
+{{template "bottom" .}}{{end}}

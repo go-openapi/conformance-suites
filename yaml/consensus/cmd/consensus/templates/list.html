@@ -1,7 +1,15 @@
 {{define "list.html"}}{{template "top" .}}
 <h1>{{.Title}}</h1>
-{{if .Source.ID}}<p>{{.Source.What}}, {{.Source.Version}}. The cases it reads otherwise than the corpus, or fails on.</p>
-{{else}}<p>The cases carrying {{.Title}} that a source reads otherwise than the corpus, or that the sources answer
-differently.</p>{{end}}
-{{if .Cases}}{{template "caserows" .}}{{else}}<p class="muted">None.</p>{{end}}
+{{if .Source.ID}}<p>{{.Source.What}}, {{.Source.Version}}.</p>
+{{$ps := index .Stances .Index}}<p>Stance: answerable up to <b>{{$ps.Table.At}}</b>{{if $ps.Because}}; {{$ps.Because}}{{end}}.{{if not $ps.Declared}} <span class="muted">No stance file: the parser has only its stage.</span>{{end}}</p>
+{{with reasonsOf .Reasons .Source.ID}}<h2>Reasons</h2>
+{{template "reasons" (withReasons $ .)}}{{end}}
+{{range .Sections}}<h2>{{.Title}}</h2>
+<p>{{.Lead}}</p>
+{{if .Cases}}{{template "caserows" (rows $ .Cases .Truncated)}}{{else}}<p class="muted">None.</p>{{end}}
+{{end}}
+{{else}}<p>The cases carrying {{.Title}} that a parser reads otherwise than the corpus, or that the parsers answer
+differently.</p>
+{{if .Cases}}{{template "caserows" (rows . .Cases .Truncated)}}{{else}}<p class="muted">None.</p>{{end}}
+{{end}}
 {{template "bottom" .}}{{end}}

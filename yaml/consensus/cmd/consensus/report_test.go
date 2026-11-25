@@ -1,0 +1,188 @@
+// SPDX-FileCopyrightText: Copyright 2025 go-swagger maintainers
+// SPDX-License-Identifier: Apache-2.0
+
+package main
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/go-openapi/conformance-suites/suite"
+	"github.com/go-openapi/conformance-suites/yaml/consensus"
+)
+
+func TestEventStatusPlacesASourceAmongTheGroups(t *testing.T) {
+	writes := sourceInfo{ID: "a", Events: true}
+	group := func(answer string, ids ...string) consensus.Group {
+		return consensus.Group{Answer: answer, Sources: ids}
+	}
+
+	for _, tc := range []struct {
+		name   string
+		s      sourceInfo
+		a      consensus.Answer
+		groups []consensus.Group
+		want   string
+	}{
+		{"a source writing no events", sourceInfo{ID: "a"}, consensus.Answer{Source: "a"}, nil, statusNoAnswer},
+		{"an error", writes, consensus.Answer{Source: "a", Verdict: consensus.Error}, nil, statusError},
+		{"a rejection", writes, consensus.Answer{Source: "a"}, []consensus.Group{group("x", "b", "c")}, statusNoEvents},
+		{"alone to accept", writes, consensus.Answer{Source: "a"}, []consensus.Group{group("x", "a")}, statusOnly},
+		{"unanimous", writes, consensus.Answer{Source: "a"}, []consensus.Group{group("x", "a", "b")}, statusAgree},
+		{
+			"two against one", writes,
+			consensus.Answer{Source: "a"},
+			[]consensus.Group{group("x", "a", "b"), group("y", "c")},
+			statusMajority,
+		},
+		{
+			"one against two", writes,
+			consensus.Answer{Source: "a"},
+			[]consensus.Group{group("x", "b", "c"), group("y", "a")},
+			statusMinority,
+		},
+		{
+			"one each", writes,
+			consensus.Answer{Source: "a"},
+			[]consensus.Group{group("x", "a"), group("y", "b")},
+			statusNoMajor,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := eventStatus(tc.s, tc.a, tc.groups); got != tc.want {
+				t.Errorf("eventStatus = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestJudgeScoresValuesOnlyWhereTheCorpusStatesOne(t *testing.T) {
+	sources := []sourceInfo{{ID: "v", Values: true}}
+	accept := []consensus.Answer{{Source: "v", Verdict: consensus.Accept, JSON: []string{`{"a":1}`}}}
+	refuse := []consensus.Answer{{Source: "v", Verdict: consensus.Refuse, RefusedBy: consensus.Parser}}
+	stated := &suite.Meaning{Under: "yaml-1.2-core", JSON: json.RawMessage(`{"a": 1}`)}
+
+	for _, tc := range []struct {
+		name string
+		rec  record
+		want string
+	}{
+		{"the stated value", record{WellFormed: true, Meaning: stated, Answers: accept}, statusOK},
+		{
+			"another value",
+			record{WellFormed: true, Meaning: &suite.Meaning{JSON: json.RawMessage(`2`)}, Answers: accept},
+			statusDiff,
+		},
+		{"a rejection", record{WellFormed: true, Meaning: stated, Answers: refuse}, statusRefused},
+		{"no stated value", record{WellFormed: true, Answers: accept}, statusNotScored},
+		{"an invalid document", record{Answers: refuse}, statusNotScored},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := judge(tc.rec, sources, []parserStance{{}}).Status["value"][0]; got != tc.want {
+				t.Errorf("value status = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestClassifyVerdictSplitsByReason(t *testing.T) {
+	h := head{
+		Corpus: corpusInfo{Vocabulary: []suite.TagSpec{
+			{Tag: "anchor/alias-undefined", Stage: "compose", Settled: "reject", Because: "7.1"},
+			{Tag: "key/duplicate", Stage: "parse", Settled: "reject", Because: "3.2.1.1"},
+			{Tag: "encoding/bom", Stage: "parse"},
+			{Tag: "key/not-a-scalar", Stage: "construct"},
+		}},
+		Sources: []sourceInfo{{ID: "p"}},
+	}
+	dir := t.TempDir()
+	const file = `parser: p
+at: compose
+stands:
+  key/duplicate: {stand: either, because: not checked}
+  key/not-a-scalar: refuses
+departures:
+  - id: merge
+    rejects: valid
+    match: {message: 'merge key'}
+    kind: position
+    because: a ruling
+  - id: lenient
+    accepts: invalid
+    match: {src: 'x'}
+    kind: leniency
+    because: unchecked
+`
+	if err := os.WriteFile(filepath.Join(dir, "p.yaml"), []byte(file), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	stances, err := loadStances(dir, h)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ps := stances[0]
+
+	accept := consensus.Answer{Verdict: consensus.Accept}
+	byParser := func(msg string) consensus.Answer {
+		return consensus.Answer{Verdict: consensus.Refuse, RefusedBy: consensus.Parser, Message: msg}
+	}
+	byLoader := consensus.Answer{Verdict: consensus.Refuse, RefusedBy: consensus.Loader}
+	byComposer := consensus.Answer{Verdict: consensus.Refuse, RefusedBy: consensus.Composer}
+	valid := func(tags ...string) record {
+		return record{WellFormed: true, VerdictAt: "compose", Tags: tags, Src: []byte("a")}
+	}
+
+	for _, tc := range []struct {
+		name string
+		rec  record
+		a    consensus.Answer
+		want string
+	}{
+		{"a settled reject, accepted", valid("anchor/alias-undefined"), accept, statusAgainst},
+		{"a settled reject, rejected", valid("anchor/alias-undefined"), byComposer, statusSettled},
+		{"a declined rule, accepted", valid("key/duplicate"), accept, statusOK},
+		{"a tag past the stage", valid("key/not-a-scalar"), byParser(""), statusDiff},
+		{"a refusal past the stage counts as accepting", valid(), byLoader, statusOK},
+		{"a refusal past the claim", record{WellFormed: true, Src: []byte("a")}, byComposer, statusUnscored},
+		{"a departure", valid(), byParser("could not find merge key"), statusExplained},
+		{"an open tag", valid("encoding/bom"), byParser(""), statusDiffTag},
+		{"nothing explains it", valid(), byParser("no"), statusDiff},
+		{"an invalid document, rejected", record{}, byParser(""), statusRefusedOK},
+		{"a leniency", record{Src: []byte("x")}, accept, statusAccExplained},
+		{"an open tag on an invalid document", record{Tags: []string{"encoding/bom"}}, accept, statusAccTagged},
+		{"an invalid document, accepted", record{Src: []byte("y")}, accept, statusAccepted},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got, _ := classifyVerdict(tc.rec, tc.a, ps); got != tc.want {
+				t.Errorf("classifyVerdict = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestTheBuiltInStanceFilesLoad(t *testing.T) {
+	h := head{Sources: []sourceInfo{{ID: "perlref"}, {ID: "libfyaml"}, {ID: "yamlstar"}, {ID: "yaml.v3"}, {ID: "go-yaml"}}}
+	for _, tag := range []string{
+		"key/duplicate", "encoding/not-utf8", "encoding/bom", "json/not-representable", "key/not-a-scalar",
+		"anchor/cyclic-meaning", "directive/yaml-minor-version", "tag/bool-not-a-boolean", "tag/timestamp-not-a-date",
+		"tag/binary-not-base64", "tag/int-not-an-integer", "tag/float-not-a-number", "tag/null-not-null",
+		"tag/omap-not-a-sequence-of-pairs", "tag/kind-mismatch", "tag/local", "tag/named-handle", "tag/percent-escape",
+		"directive/yaml-version", "merge/key", "merge/sequence", "merge/written-in-place", "merge/into-non-mapping",
+		"merge/quoted", "merge/key-alone", "representation/binary", "representation/timestamp",
+		"representation/ordered-map", "representation/integer-wide", "representation/float-out-of-range",
+		"representation/float-inexact", "representation/float-non-finite",
+	} {
+		h.Corpus.Vocabulary = append(h.Corpus.Vocabulary, suite.TagSpec{Tag: tag, Stage: "parse"})
+	}
+	stances, err := loadStances("", h)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, ps := range stances {
+		if !ps.Declared {
+			t.Errorf("%s has no stance file", h.Sources[i].ID)
+		}
+	}
+}

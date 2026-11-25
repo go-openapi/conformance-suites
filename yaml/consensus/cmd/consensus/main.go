@@ -11,8 +11,8 @@
 // Usage:
 //
 //	consensus check
-//	consensus run [-sources perlref,libfyaml,...] [-j N] [-timeout 10s] [-cache DIR] corpus.jsonl.gz > results.jsonl
-//	consensus report [-o DIR] results.jsonl
+//	consensus run [-sources perlref,libfyaml,...] [-j N] [-timeout 10s] [-cache DIR] [-corpus-ref REF] corpus.jsonl.gz > results.jsonl
+//	consensus report [-o DIR] [-stances DIR] results.jsonl
 //
 // check lists the sources and whether each can be run. run writes one line naming the corpus and the sources, then
 // one line per case with every source's answer. report reads those results and writes a static site: a summary, a
@@ -65,7 +65,7 @@ func usage() {
 	fmt.Fprint(os.Stderr, `usage:
   consensus check
   consensus run [-sources perlref,libfyaml,yamlstar,yaml.v3,go-yaml] [-j N] [-timeout 10s] [-cache DIR] corpus.jsonl.gz > results.jsonl
-  consensus report [-o DIR] results.jsonl
+  consensus report [-o DIR] [-stances DIR] results.jsonl
 `)
 }
 
@@ -92,6 +92,7 @@ func runCommand(args []string) error {
 	timeout := fs.Duration("timeout", 10*time.Second, "how long one source may take on one document")
 	cacheDir := fs.String("cache", "", "directory keeping each source's answers between runs")
 	limit := fs.Int("limit", 0, "stop after this many cases, for a quick look; 0 runs them all")
+	corpusRef := fs.String("corpus-ref", "", "the conformance-suites commit or tag the corpus file comes from, for the report")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -119,20 +120,22 @@ func runCommand(args []string) error {
 		return errors.New("no source is available; see consensus check")
 	}
 
-	return runCorpus(fs.Arg(0), runOptions{sources: chosen, workers: *workers, timeout: *timeout, cache: *cacheDir, limit: *limit},
-		os.Stdout, os.Stderr)
+	return runCorpus(fs.Arg(0), runOptions{
+		sources: chosen, workers: *workers, timeout: *timeout, cache: *cacheDir, limit: *limit, corpusRef: *corpusRef,
+	}, os.Stdout, os.Stderr)
 }
 
 func reportCommand(args []string) error {
 	fs := flag.NewFlagSet("report", flag.ContinueOnError)
 	dir := fs.String("o", "report", "directory to write the report into")
+	stanceDir := fs.String("stances", "", "directory of stance files, <id>.yaml; empty reads the ones built in")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if fs.NArg() != 1 {
 		return errors.New("report takes one results file")
 	}
-	if err := writeReport(fs.Arg(0), *dir); err != nil {
+	if err := writeReport(fs.Arg(0), *dir, *stanceDir, os.Stderr); err != nil {
 		return err
 	}
 	fmt.Fprintf(os.Stderr, "consensus: wrote %s/index.html\n", *dir)

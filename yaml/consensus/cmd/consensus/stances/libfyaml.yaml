@@ -1,0 +1,27 @@
+# The stance of libfyaml: fy-tool gives the verdict and the events, the Python binding the value.
+parser: libfyaml
+at: parse
+because: >-
+  fy-tool parses the document and writes its events, which give the verdict; the Python binding builds the value
+  afterwards, so its failures do not change the verdict
+
+stands:
+  key/duplicate:
+    stand: either
+    because: >-
+      fy-tool writes events without checking for a key written twice, and accepts most documents that write one
+
+# The Python binding returns numbers past the native ranges as their text.
+departures:
+  - id: wide-integer-as-text
+    differs: value
+    match: {tags: [representation/integer-wide]}
+    kind: position
+    because: >-
+      the Python binding returns an integer past 64 bits as a string:
+      -803850883125972097111 comes back as "-803850883125972097111"
+  - id: float-past-double-as-text
+    differs: value
+    match: {tags: [representation/float-out-of-range]}
+    kind: position
+    because: the Python binding returns a float past a double's range as a string, "-9.948e-328"

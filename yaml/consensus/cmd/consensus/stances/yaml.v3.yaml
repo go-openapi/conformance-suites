@@ -1,0 +1,22 @@
+# The stance of go.yaml.in/yaml/v3, decoding every document into any.
+parser: yaml.v3
+at: construct
+because: yaml.NewDecoder decodes each document into any, and the runner writes the value as JSON
+
+# yaml.v3 decodes numbers into Go's native types, so a number past their range changes. YAML leaves the range and
+# accuracy to the implementation (10.2.1.4), and the corpus states the exact value.
+departures:
+  - id: wide-integer-as-float64
+    differs: value
+    match: {tags: [representation/integer-wide]}
+    kind: position
+    because: >-
+      an integer past uint64 decodes into a float64, which keeps about 17 significant digits:
+      -803850883125972097111 comes back as -803850883125972000000
+  - id: float-past-float64
+    differs: value
+    match: {tags: [representation/float-out-of-range]}
+    kind: position
+    because: >-
+      a float too small for a float64 decodes as 0, and one too large is left a string,
+      because yaml.v3 does not resolve it to a float: 9.999e+442 comes back as "9.999e+442"

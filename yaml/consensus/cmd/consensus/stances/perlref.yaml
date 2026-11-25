@@ -1,0 +1,41 @@
+# The stance of the YAML 1.2 reference parser, read through its event output.
+parser: perlref
+at: parse
+because: >-
+  the YAML 1.2 reference parser (yaml/yaml-reference-parser, Perl), generated from the spec's grammar productions;
+  the runner reads its events, and it builds no values
+
+stands:
+  key/duplicate:
+    stand: either
+    because: >-
+      the grammar has no production against a key written twice, and the reference parser implements the grammar
+      alone, so it does not check this settled rule
+
+# The reference parser implements the productions that shape a document and leaves several character-level checks
+# out. Each departure below accepts documents the corpus grammar rejects.
+departures:
+  - id: bytes-not-utf8
+    accepts: invalid
+    match: {tags: [encoding/not-utf8]}
+    kind: leniency
+    because: the parser does not check that its input is UTF-8
+  - id: bom-anywhere
+    accepts: invalid
+    match: {tags: [encoding/bom]}
+    kind: leniency
+    because: the parser takes a byte order mark where the grammar allows none
+  - id: escape-unchecked
+    accepts: invalid
+    match:
+      src: '\\(?:x[0-9A-Fa-f]?[^0-9A-Fa-f]|u[0-9A-Fa-f]{0,3}[^0-9A-Fa-f]|U[0-9A-Fa-f]{0,7}[^0-9A-Fa-f]|[^0abtnvfre "/\\N_LPxuU\t\r\n])'
+    kind: leniency
+    because: >-
+      the parser takes a double-quoted escape without checking it: \x with fewer than two hex digits, \u with
+      fewer than four, a letter no escape names
+  - id: yaml-directive-unchecked
+    accepts: invalid
+    match:
+      src: '(?m)^%YAML(?:[ \t]*$|[^ \t]|[ \t]+(?:[^0-9 \t]|[0-9]+(?:$|[^.0-9]|\.(?:$|[^0-9]|[0-9]+[^0-9 \t\r\n#]))))'
+    kind: leniency
+    because: the parser does not check the version number of a %YAML directive

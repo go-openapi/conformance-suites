@@ -20,13 +20,14 @@
 {{range groups $c $q.ID}}<p><b>{{range .Sources}}{{.}} {{end}}</b></p><pre>{{.Answer}}</pre>{{else}}<p class="muted">No source answered.</p>{{end}}
 {{end}}
 
-<h2>Each source</h2>
+<h2>Each parser</h2>
 <div class="wrap"><table>
-<tr><th class="name">source</th><th class="name">verdict</th><th class="name">value</th><th class="name">said</th><th>ms</th></tr>
+<tr><th class="name">parser</th><th class="name">verdict</th><th class="name">value</th><th class="name">reason</th><th class="name">message</th><th>ms</th></tr>
 {{range $i, $s := .Head.Sources}}{{$a := answerOf $c $i}}
 <tr><td class="name">{{$s.ID}}</td>
-<td class="name"><span class="{{cls (status $c "verdict" $i)}}">{{status $c "verdict" $i}}</span> <span class="muted">{{$a.Verdict}}{{if $a.RefusedBy}} by the {{$a.RefusedBy}}{{end}}</span></td>
+<td class="name"><span class="{{cls (status $c "verdict" $i)}}">{{label (status $c "verdict" $i)}}</span> <span class="muted">{{$a.Verdict}}{{if $a.RefusedBy}} by the {{$a.RefusedBy}}{{end}}</span></td>
 <td class="name"><span class="{{cls (status $c "value" $i)}}">{{status $c "value" $i}}</span></td>
+<td class="name">{{with why $c $i}}{{.Text}}{{end}}{{with valueWhy $c $i}}{{if why $c $i}}<br>{{end}}value: {{.Text}}{{end}}</td>
 <td class="name">{{$a.Message}}</td><td>{{$a.ElapsedMS}}</td></tr>
 {{end}}
 </table></div>
