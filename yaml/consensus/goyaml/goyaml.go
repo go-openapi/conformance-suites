@@ -87,7 +87,7 @@ func Load(src []byte) ([]any, error) {
 		}
 
 		if err != nil {
-			return nil, fmt.Errorf("go-yaml: %w", err)
+			return nil, fmt.Errorf("yaml.v3: %w", err)
 		}
 
 		out = append(out, v)
@@ -122,4 +122,4 @@ func LoadJSON(src []byte) ([]string, error) {
 }
 
 // ErrNotJSON says a document was read and JSON cannot write what came back.
-var ErrNotJSON = errors.New("go-yaml: read it, and JSON cannot write it")
+var ErrNotJSON = errors.New("yaml.v3: read it, and JSON cannot write it")
