@@ -5,6 +5,7 @@ package consensus
 
 import (
 	"math"
+	"math/big"
 	"reflect"
 	"time"
 )
@@ -57,11 +58,17 @@ func sameValue(a, b reflect.Value) bool {
 	if a.Type() != b.Type() {
 		return false
 	}
+	if same, ok := sameCanonical(a, b); ok {
+		return same
+	}
 
 	switch a.Kind() {
 	case reflect.Interface, reflect.Pointer:
 		if a.IsNil() || b.IsNil() {
 			return a.IsNil() == b.IsNil()
+		}
+		if same, ok := sameNumber(a, b); ok {
+			return same
 		}
 
 		return sameValue(a.Elem(), b.Elem())
@@ -93,19 +100,88 @@ func sameElements(a, b reflect.Value) bool {
 	return true
 }
 
+// sameEntries matches each entry of a with an entry of b. A key found by MapIndex is the same key; a key MapIndex
+// misses, such as a *big.Int that is equal in value and is another pointer, is matched with sameValue.
 func sameEntries(a, b reflect.Value) bool {
 	if a.Len() != b.Len() {
 		return false
 	}
+	var missed []reflect.Value
 	iter := a.MapRange()
 	for iter.Next() {
 		other := b.MapIndex(iter.Key())
-		if !other.IsValid() || !sameValue(iter.Value(), other) {
+		if !other.IsValid() {
+			missed = append(missed, iter.Key())
+
+			continue
+		}
+		if !sameValue(iter.Value(), other) {
+			return false
+		}
+	}
+
+	return matchKeys(a, b, missed)
+}
+
+// matchKeys pairs each key of a that b's index missed with a key of b equal in value and not paired already.
+func matchKeys(a, b reflect.Value, missed []reflect.Value) bool {
+	used := map[int]bool{}
+	keys := b.MapKeys()
+	for _, k := range missed {
+		found := false
+		for i, other := range keys {
+			if used[i] || a.MapIndex(other).IsValid() || !sameValue(k, other) {
+				continue
+			}
+			if !sameValue(a.MapIndex(k), b.MapIndex(other)) {
+				return false
+			}
+			used[i], found = true, true
+
+			break
+		}
+		if !found {
 			return false
 		}
 	}
 
 	return true
+}
+
+// canonical is a value with a canonical text: go-yaml's codec.Base64 holds the text a "!!binary" wrote, and
+// Canonical drops the blanks and line breaks base64 tolerates.
+type canonical interface{ Canonical() string }
+
+// sameCanonical compares two values of one type by their canonical text, when the type has one: a "!!binary" written
+// on two lines and read back from one holds the same bytes. ok is false for a type with no Canonical method.
+func sameCanonical(a, b reflect.Value) (same, ok bool) {
+	if !a.CanInterface() || !b.CanInterface() {
+		return false, false
+	}
+	x, isCanonical := reflect.TypeAssert[canonical](a)
+	if !isCanonical {
+		return false, false
+	}
+	y, _ := reflect.TypeAssert[canonical](b)
+
+	return x.Canonical() == y.Canonical(), true
+}
+
+// sameNumber compares a *big.Int or a *big.Float by value, which a field-by-field walk cannot: two equal big.Float
+// values may differ in precision and accuracy. ok is false for any other type.
+func sameNumber(a, b reflect.Value) (same, ok bool) {
+	switch x := a.Interface().(type) {
+	case *big.Int:
+		y, isInt := reflect.TypeAssert[*big.Int](b)
+
+		return isInt && x.Cmp(y) == 0, true
+	case *big.Float:
+		y, isFloat := reflect.TypeAssert[*big.Float](b)
+
+		return isFloat && x.Cmp(y) == 0, true
+	default:
+		return false, false
+	}
 }
 
 // sameFields compares two structs field by field. A time.Time is the same instant in the same zone offset, because
