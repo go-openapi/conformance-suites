@@ -374,7 +374,7 @@ func readString(s string) (string, string, error) {
 				if i+4 >= len(s) {
 					return "", "", errors.New(`a short \u escape`)
 				}
-				code, err := strconv.ParseUint(s[i+1:i+5], 16, 32)
+				code, err := strconv.ParseUint(s[i+1:i+5], 16, 16)
 				if err != nil {
 					return "", "", fmt.Errorf(`a \u escape: %w`, err)
 				}
