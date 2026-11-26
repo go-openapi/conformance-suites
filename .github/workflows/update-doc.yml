@@ -4,6 +4,9 @@ permissions:
   contents: read
 
 on:
+  # consensus.yml runs it once a release carries a new results file.
+  workflow_dispatch:
+
   push:
     tags:
       - v*
@@ -11,12 +14,14 @@ on:
     paths:
     - docs/**
     - hack/doc-site/**
+    - yaml/consensus/cmd/consensus/**
     - .github/workflows/update-doc.yml
 
   pull_request:
     paths:
     - docs/**
     - hack/doc-site/**
+    - yaml/consensus/cmd/consensus/**
     - .github/workflows/update-doc.yml
 
 concurrency:
@@ -37,9 +42,6 @@ jobs:
         with:
           fetch-depth: '1'
           submodules: recursive
-          sparse-checkout: |
-            hack/
-            docs/
       -
         name: Get all tags [go-openapi repo]
         if: ${{ github.repository == 'go-openapi/conformance-suites' }}
@@ -52,6 +54,25 @@ jobs:
           git remote add upstream "https://github.com/go-openapi/conformance-suites"
           git fetch upstream --prune --update-shallow --tags 'refs/tags/*:refs/tags/*'
           git fetch origin --prune --update-shallow --tags 'refs/tags/*:refs/tags/*'
+      -
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version: stable
+          check-latest: true
+          cache: true
+          cache-dependency-path: '**/go.sum'
+      -
+        name: Render the consensus report
+        # From the results file of the latest release. Without one, the site says no report is published yet.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release download --repo go-openapi/conformance-suites \
+              --pattern consensus-results.jsonl.gz --dir "${RUNNER_TEMP}"; then
+            hack/doc-site/consensus-report.sh "${RUNNER_TEMP}/consensus-results.jsonl.gz"
+          else
+            echo "::notice::No release carries consensus-results.jsonl.gz: the site goes without the report"
+          fi
       -
         name: Initialize theme
         env:

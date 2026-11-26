@@ -1,0 +1,85 @@
+name: Consensus report
+
+# Builds the consensus image, publishes it to ghcr.io, runs it on the compact YAML corpus,
+# and attaches the results file to a release. The doc site renders the report from that file.
+#
+# tag-release.yml calls it once the release exists. Run it by hand to attach results to an existing release.
+
+permissions:
+  contents: read
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: the release to attach the results file to
+        type: string
+        required: true
+
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: the release to attach the results file to, such as v0.0.4
+        type: string
+        required: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  consensus:
+    name: Run the consensus image
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write   # gh release upload
+      packages: write   # docker push to ghcr.io
+      actions: write    # gh workflow run update-doc.yml
+    env:
+      TAG: ${{ inputs.tag }}
+      IMAGE: ghcr.io/${{ github.repository }}/consensus
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Build the image
+        # The source label links the package to this repository on ghcr.io.
+        run: >
+          docker build -f yaml/consensus/docker/Dockerfile
+          --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}"
+          -t "${IMAGE}:${TAG}" .
+
+      - name: Check every parser runs
+        run: docker run --rm "${IMAGE}:${TAG}" check
+
+      - name: Publish the image
+        run: |
+          echo "${GH_TOKEN}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker tag "${IMAGE}:${TAG}" "${IMAGE}:latest"
+          docker push "${IMAGE}:${TAG}"
+          docker push "${IMAGE}:latest"
+
+      # The cache keys each answer by <source>@<version>, so only the sources whose version changed run again.
+      - name: Restore the answer cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .consensus-cache
+          key: consensus-cache-${{ github.run_id }}
+          restore-keys: consensus-cache-
+
+      - name: Run the corpus
+        run: |
+          cp yaml/corpus/testdata/yaml-compact.jsonl.gz .
+          docker run --rm --user "$(id -u):$(id -g)" -v "${PWD}:/work" "${IMAGE}:${TAG}" \
+            run -cache /work/.consensus-cache -corpus-ref "${TAG}" /work/yaml-compact.jsonl.gz \
+            > consensus-results.jsonl
+          gzip -9 consensus-results.jsonl
+
+      - name: Attach the results to the release
+        run: gh release upload "${TAG}" consensus-results.jsonl.gz --clobber
+
+      - name: Rebuild the doc site
+        run: gh workflow run update-doc.yml --ref master

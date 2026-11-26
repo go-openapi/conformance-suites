@@ -18,3 +18,14 @@ jobs:
       tag: ${{ github.ref_name }}
       is-monorepo: 'true'
     secrets: inherit
+
+  consensus:
+    name: Consensus report
+    needs: gh-release
+    permissions:
+      contents: write
+      packages: write
+      actions: write
+    uses: ./.github/workflows/consensus.yml
+    with:
+      tag: ${{ github.ref_name }}
