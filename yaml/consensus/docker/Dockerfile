@@ -27,7 +27,7 @@
 #   libfyaml                   1.0.0-rc2 (2026-11-11): the C sources for fy-tool, the PyPI binding 1.0.0rc2
 #   YAMLStar                   v0.1.28 (2026-10-28), linux-x64 release
 #   go.yaml.in/yaml/v3         v3.0.6, compiled into the runner
-#   go-openapi/go-yaml         v0.0.0-20261125202738-e9e562bb00a5 (origin/master), unless a goyaml context is given
+#   go-openapi/go-yaml         v0.0.0-20261126182158-1aed24577d00 (master, 2026-11-26), unless a goyaml context is given
 
 ARG DEBIAN=debian:trixie-20261123-slim
 ARG GOLANG=golang:1.27.4-trixie

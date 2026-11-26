@@ -2,7 +2,7 @@ module github.com/go-openapi/conformance-suites/yaml/consensus/docker/goyaml-jso
 
 go 1.26.0
 
-require github.com/go-openapi/go-yaml v0.0.0-20261125202738-e9e562bb00a5
+require github.com/go-openapi/go-yaml v0.0.0-20261126182158-1aed24577d00
 
 require (
 	github.com/go-openapi/core/json v0.0.3 // indirect

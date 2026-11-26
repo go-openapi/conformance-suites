@@ -1,7 +1,7 @@
 github.com/go-openapi/core/json v0.0.3 h1:L4YuBIsLVtn5x52u27z+xRdJQkD0BaverQFNvxl7h6E=
 github.com/go-openapi/core/json v0.0.3/go.mod h1:nQl4bCBPXPOLlpjfSUcT2hcRKUBVuz+xLHx92aH524w=
-github.com/go-openapi/go-yaml v0.0.0-20261125202738-e9e562bb00a5 h1:boqlE0cJfOouBpGjsoOJeTue9AiYPsUijAk0TE3Nh2M=
-github.com/go-openapi/go-yaml v0.0.0-20261125202738-e9e562bb00a5/go.mod h1:BnkHQfiUXLR4gWVOvMlxWS0iaaRj9PJ4GCrLZnW0fNs=
+github.com/go-openapi/go-yaml v0.0.0-20261126182158-1aed24577d00 h1:aoML9j8mHvTaz4f7HljHAUkT2eqCfW6UQztrFuK7yVw=
+github.com/go-openapi/go-yaml v0.0.0-20261126182158-1aed24577d00/go.mod h1:BnkHQfiUXLR4gWVOvMlxWS0iaaRj9PJ4GCrLZnW0fNs=
 github.com/go-openapi/swag/conv v0.28.0 h1:GtqqbyFe7vR5Y7ehxG9W6/OvrSFdf1OLeTGp40TqxH8=
 github.com/go-openapi/swag/conv v0.28.0/go.mod h1:mbUE+mzctnhxi864m0Q07SpN8OowD9JhxmxuYvZZD/k=
 github.com/go-openapi/swag/pools v0.28.0 h1:HPMZWSAfce3rdVTFcjFiCIBtDg9h4x2QlRrHipwhxeU=
