@@ -61,7 +61,7 @@ departures:
     rejects: valid
     match:
       message: 'did not find expected <document start>|did not find expected comment or line break|found unexpected end of stream|did not find expected whitespace or line break'
-      src: '(^\x{FEFF}?|[\r\n])(---[ \t]+)?([&!]\S*[ \t]+)*[|>]([-+]?[1-9]|[1-9][-+]?)'
+      src: '(^\x{FEFF}?|[\r\n])[ ]*(---[ \t]+)?([&!]\S*[ \t]+)*[|>]([-+]?[1-9]|[1-9][-+]?)'
     kind: defect
     because: >-
       yaml.v3 counts a top-level block scalar's indentation indicator from column 0. The root node has n = -1
@@ -94,6 +94,32 @@ departures:
     because: >-
       yaml.v3 rejects a block mapping entry that starts with ':', which l-block-map-implicit-entry reads as an
       empty key: "a: 1\n: 2" rejects the document
+  - id: escape-slash
+    rejects: valid
+    match:
+      message: 'found unknown escape character'
+      src: '\\/'
+    kind: defect
+    because: >-
+      yaml.v3 rejects the escape "\/", which YAML 1.2 adds as [53] ns-esc-slash: "a\/b" rejects the document
+  - id: hash-in-tag
+    rejects: valid
+    match:
+      message: "did not find expected whitespace or line break|did not find the expected '>'|did not find expected tag URI"
+      src: '![^\s]*#|%TAG[^\r\n]*#'
+    kind: defect
+    because: >-
+      yaml.v3 ends a tag or a %TAG prefix at a '#', which ns-uri-char takes: "!foo# x" and
+      "!<tag:yaml.org,200#:int> 1" reject the document
+  - id: flow-entry-starting-with-colon
+    rejects: valid
+    match:
+      message: 'did not find expected node content'
+      src: '[\[{,][ \t]*:'
+    kind: defect
+    because: >-
+      yaml.v3 rejects a flow entry that starts with ':', both an empty key, "[:]", and a plain scalar such as
+      "[:a]", which ns-plain-first takes in flow context when a safe character follows the ':'
   - id: tab-opens-block-content
     rejects: valid
     match:
@@ -194,7 +220,7 @@ departures:
   - id: indicator-counted-from-0-value
     differs: value
     match:
-      src: '(^\x{FEFF}?|[\r\n])(---[ \t]+)?([&!]\S*[ \t]+)*[|>]([-+]?[1-9]|[1-9][-+]?)'
+      src: '(^\x{FEFF}?|[\r\n])[ ]*(---[ \t]+)?([&!]\S*[ \t]+)*[|>]([-+]?[1-9]|[1-9][-+]?)'
     kind: defect
     because: >-
       yaml.v3 counts a top-level block scalar's indentation indicator from column 0, one space deeper than n+m with
