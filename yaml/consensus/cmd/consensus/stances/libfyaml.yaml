@@ -15,6 +15,14 @@ stands:
     because: >-
       libfyaml keeps one anchor table for the whole stream on purpose, so an alias may name an anchor of an earlier
       document. The rule is decided at compose, past the parse fy-tool gives the verdict on
+  directive/yaml-minor-version:
+    stand: either
+    because: fy-tool accepts a %YAML directive for 1.1, 1.2 and 1.3, and rejects one it does not know, such as 1.22
+  indentation/tab-opens-content:
+    stand: either
+    because: >-
+      fy-tool rejects a tab opening a top-level block scalar's content in a bare document, "|\n\tx" fails with
+      "invalid tab character as indent instead of space", and accepts it after a "---": "--- !!str |\n\tx"
 
 departures:
   - id: indicator-counted-from-0
@@ -38,6 +46,24 @@ departures:
       fy-tool takes the column of an anchor, or of an indented header, as the indentation of a top-level block
       scalar, so content at or left of that column ends the document: "&a1 |\nx" and "  >-\n x" are rejected,
       where the root's n = -1 lets the content start at column 0
+  - id: tab-before-node
+    rejects: valid
+    match:
+      message: 'plain scalar cannot start with'
+      src: '(^\x{FEFF}?|[\r\n])\t'
+    kind: defect
+    because: >-
+      fy-tool reads a tab at the start of a line as the start of a plain scalar, so a node property, a quoted
+      scalar or a flow collection after it fails, and so does a last line of a tab after a comment:
+      "---\n\t&a1 []" is rejected, where s-separate takes the tab
+  - id: plain-value-continued
+    rejects: valid
+    match:
+      message: 'invalid multiline plain key'
+    kind: defect
+    because: >-
+      fy-tool reads a plain value continued on a more indented line that starts with '?' as a multi-line key:
+      "? a\n: x\n ? b\n: y" is rejected, where s-ns-plain-next-line makes the value "x ? b"
   - id: tab-after-explicit-key
     rejects: valid
     match:

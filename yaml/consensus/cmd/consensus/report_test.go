@@ -240,6 +240,7 @@ func TestTheBuiltInStanceFilesLoad(t *testing.T) {
 		"merge/quoted", "merge/key-alone", "representation/binary", "representation/timestamp",
 		"representation/ordered-map", "representation/integer-wide", "representation/float-out-of-range",
 		"representation/float-inexact", "representation/float-non-finite", "anchor/alias-across-documents",
+		"indentation/tab-opens-content",
 	} {
 		h.Corpus.Vocabulary = append(h.Corpus.Vocabulary, suite.TagSpec{Tag: tag, Stage: "parse"})
 	}
