@@ -4,6 +4,8 @@ name: Consensus report
 # and attaches the results file to a release. The doc site renders the report from that file.
 #
 # tag-release.yml calls it once the release exists. Run it by hand to attach results to an existing release.
+# A release cut by bump-release.yml starts no other workflow, so a daily schedule also checks the latest release
+# and runs when it has no results file yet.
 
 permissions:
   contents: read
@@ -23,13 +25,48 @@ on:
         type: string
         required: true
 
+  schedule:
+    - cron: '17 4 * * *'
+
+# One run at a time, so the schedule cannot start a second run on a release a manual run is filling.
+concurrency:
+  group: consensus
+  cancel-in-progress: false
+
 defaults:
   run:
     shell: bash
 
 jobs:
+  pick:
+    name: Pick the release
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.pick.outputs.tag }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      INPUT_TAG: ${{ inputs.tag }}
+    steps:
+      - name: Pick the release
+        id: pick
+        # A given tag always runs. On schedule, the latest release runs only when it lacks the results file.
+        run: |
+          if [ -n "${INPUT_TAG}" ]; then
+            echo "tag=${INPUT_TAG}" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          tag=$(gh release view --repo "${GITHUB_REPOSITORY}" --json tagName --jq .tagName)
+          if gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" --json assets \
+              --jq '.assets[].name' | grep -qx consensus-results.jsonl.gz; then
+            echo "::notice::${tag} already carries consensus-results.jsonl.gz"
+          else
+            echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+          fi
+
   consensus:
     name: Run the consensus image
+    needs: pick
+    if: ${{ needs.pick.outputs.tag != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
@@ -37,13 +74,13 @@ jobs:
       packages: write   # docker push to ghcr.io
       actions: write    # gh workflow run update-doc.yml
     env:
-      TAG: ${{ inputs.tag }}
+      TAG: ${{ needs.pick.outputs.tag }}
       IMAGE: ghcr.io/${{ github.repository }}/consensus
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ needs.pick.outputs.tag }}
 
       - name: Build the image
         # The source label links the package to this repository on ghcr.io.
