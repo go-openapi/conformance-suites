@@ -176,17 +176,9 @@ func yamlstarAnswer(ctx context.Context, src []byte) consensus.Answer {
 func yamlv3Answer(_ context.Context, src []byte) consensus.Answer {
 	docs, err := goyaml.Load(src)
 	if err != nil {
-		stage := consensus.Parser
-		// yaml.v3 names a loader error "unmarshal errors", and its parser errors carry a line. An alias naming no
-		// anchor is its composer's.
-		switch msg := err.Error(); {
-		case strings.Contains(msg, "unmarshal errors") || strings.Contains(msg, "invalid map key"):
-			stage = consensus.Loader
-		case strings.Contains(msg, "unknown anchor"):
-			stage = consensus.Composer
-		}
+		msg := err.Error()
 
-		return consensus.Answer{Verdict: consensus.Refuse, RefusedBy: stage, Message: consensus.FirstLine(err.Error())}
+		return consensus.Answer{Verdict: consensus.Refuse, RefusedBy: yamlv3Stage(msg), Message: consensus.FirstLine(msg)}
 	}
 
 	a := consensus.Answer{Verdict: consensus.Accept, Docs: len(docs), RoundTrip: goyaml.RoundTrip(src)}
@@ -267,4 +259,31 @@ func timed(s source, src []byte, timeout time.Duration) consensus.Answer {
 	a.ElapsedMS = float64(time.Since(start).Microseconds()) / 1000
 
 	return a
+}
+
+// yamlv3Loader holds the messages of yaml.v3's decoder, which builds the value after a clean parse: the type errors
+// it gathers as "unmarshal errors", and the failures of decode.go and resolve.go.
+var yamlv3Loader = []string{
+	"unmarshal errors",
+	"invalid map key",
+	"cannot decode ",
+	"!!binary value contains invalid base64 data",
+	"map merge requires map or sequence of maps",
+	"value contains itself",
+	"document contains excessive aliasing",
+}
+
+// yamlv3Stage returns the stage of yaml.v3 that wrote an error message. An alias naming no anchor is the
+// composer's, and every other message without a loader's wording is the parser's.
+func yamlv3Stage(msg string) consensus.Stage {
+	if strings.Contains(msg, "unknown anchor") {
+		return consensus.Composer
+	}
+	for _, m := range yamlv3Loader {
+		if strings.Contains(msg, m) {
+			return consensus.Loader
+		}
+	}
+
+	return consensus.Parser
 }
