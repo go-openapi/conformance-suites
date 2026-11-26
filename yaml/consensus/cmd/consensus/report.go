@@ -16,7 +16,6 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -746,7 +745,6 @@ func writeReport(results, dir, stanceDir string, warn io.Writer) error {
 			return string(c.Meaning.JSON)
 		},
 		"cls":   statusClass,
-		"ms":    milliseconds,
 		"rules": func(c judged) []tagRule { return tagRules(h.Corpus.Vocabulary, c.Tags) },
 		"groupsIn": func(groups []reasonGroup, question, source string) []reasonGroup {
 			var out []reasonGroup
@@ -1110,13 +1108,4 @@ func readResults(path string) (head, []record, error) {
 	}
 
 	return h, out, nil
-}
-
-// milliseconds writes a time in milliseconds with three significant digits below 100 ms, and whole above.
-func milliseconds(ms float64) string {
-	if ms >= 100 {
-		return strconv.FormatFloat(ms, 'f', 0, 64)
-	}
-
-	return strconv.FormatFloat(ms, 'g', 3, 64)
 }
