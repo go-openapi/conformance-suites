@@ -45,13 +45,40 @@ departures:
   - id: lone-cr-break
     rejects: valid
     match:
-      src: '\r[\r#]|^\x{FEFF}?[ \t]*#[^\r\n]*\r(?:[^\n]|$)|(^|[ \t\r\n])[&!][^ \t\r\n]*([ \t]+[&!][^ \t\r\n]*)?([ \t]+#[^\r\n]*)?[ \t]*\r(?:[^\n]|$)|(^|[\r\n])\.\.\.[ \t]*(#[^\r\n]*)?\r(?:[^\n]|$)'
+      src: '\r([^\n]|$)'
     kind: defect
     because: >-
-      the parser takes a lone CR as a line break between most lines, but not before an empty line, before a comment
-      at column 0, after a comment that opens the stream, after node properties that end a line, or around a "..."
-      marker next to a comment or a flow node: "x\r\r", "x\r# c", "!foo\r- a" and "a:\r  &x\r  b: 1" reject the
-      document, where [28] b-break takes a lone CR
+      the parser takes a lone CR as a line break in some places and not in others: "x\r\r", "x\r# c", "!foo\r- a",
+      "\r!" and an empty line written "\n\r" reject the document, where [28] b-break takes a lone CR. Any valid
+      document holding a lone CR is covered, so a defect of another kind in such a document is hidden
+  - id: json-key-properties-adjacent-value
+    rejects: valid
+    match:
+      src: '[{,][ \t]*(\?[ \t]+)?([&!][^ \t\r\n]*[ \t]+)+("([^"\\]|\\.)*"|''([^'']|'''')*'')[ \t]*:[^ \t\r\n]'
+    kind: defect
+    because: >-
+      the parser rejects a quoted key with node properties in a flow mapping when its value follows the ':' with no
+      space: "{!!str "" :x}", "{! 'p':x}" and "{? !!str " ":9}" are rejected, where c-flow-json-node takes
+      the properties and c-ns-flow-map-adjacent-value the value; "{"" :x}" and "{!!str "": x}" are accepted
+  - id: lone-cr-in-block-scalar
+    accepts: invalid
+    match:
+      src: '[|>][-+0-9]*[ \t]*(#[^\r\n]*)?\r([^\n]|$)'
+    kind: defect
+    because: >-
+      the parser takes a line at column 0 into a top-level block scalar when the lines end in lone CRs, where
+      that line ends the scalar: ">-\r .\r5" is accepted with the value " .\n5", and the same document with LF
+      breaks is rejected
+  - id: explicit-value-compact-key
+    accepts: invalid
+    match:
+      src: '(^|[\r\n])[ ]*:\?[ \t]*(#[^\r\n]*)?(\r|\n|$)'
+    kind: defect
+    because: >-
+      the parser follows [185] s-l+block-indented to the letter after the ':' of an explicit entry: s-indent(0) and a
+      compact mapping whose key is a lone '?', so "? a\n:?" is accepted. The '-' of a block sequence entry has a
+      lookahead against this, and the ':' has none; the corpus reads the document as invalid, as libfyaml,
+      yaml.v3 and go-yaml do
   - id: bom-before-content
     rejects: valid
     match:
