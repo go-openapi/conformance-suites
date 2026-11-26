@@ -220,6 +220,16 @@ var streamCases = []struct {
 	{"a question mark alone is an explicit key", "? a: b\n", true},
 	{"a question mark opens a flow scalar", "{?a: b}\n", true},
 	{"a question mark alone in flow", "{? a: b}\n", true},
+
+	// A lone "?" right before a flow indicator is neither: [126] wants an
+	// ns-plain-safe character after it, and [142] and [150] a separation. A ":"
+	// has no such need, so "[:]" is an empty pair where "[?]" has no reading.
+	{"a question mark against a closing bracket", "[?]\n", false},
+	{"a question mark against a closing brace", "{?}\n", false},
+	{"a question mark against a comma", "[?, a]\n", false},
+	{"a question mark and a space before a bracket", "[? ]\n", true},
+	{"a question mark and a break before a bracket", "[?\n]\n", true},
+	{"a colon against a closing bracket", "[:]\n", true},
 	{"three dashes with content behind them", "---foo\n", true},
 	{"three dashes on their own line", "---\nfoo\n", true},
 	{"a block header ends its line", "a: |2x\n  x\n", false},
