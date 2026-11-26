@@ -1,10 +1,14 @@
 {{define "index.html"}}{{template "top" .}}
 <h1>YAML consensus</h1>
-<p>Each of the {{len .Head.Sources}} YAML parsers below reads every document of the {{.Head.Corpus.Tier}} corpus. The report scores each
-parser against the corpus, and compares the parsers with each other. Hover over a column heading to see what it
-counts.</p>
+<p>Each of the {{len .Head.Sources}} YAML parsers compared below reads every document
+of our {{.Head.Corpus.Tier}} corpus ({{.Stats.Documents}} documents).</p>
+<p>
+The report scores each parser against the corpus and compares the parsers with each other.
+Hover over a column heading to see what it counts.
+</p>
 
-<h2>Corpus</h2>
+<details class="fold">
+<summary><h2>Corpus facts sheet</h2></summary>
 <table>
 <tr><td class="name">tier</td><td class="name">{{.Head.Corpus.Tier}}</td></tr>
 <tr><td class="name">documents</td><td class="name">{{.Stats.Documents}}: {{.Stats.Valid}} valid, {{.Stats.Invalid}} invalid</td></tr>
@@ -12,35 +16,80 @@ counts.</p>
 <tr><td class="name">carrying a tag</td><td class="name">{{.Stats.Tagged}}, under {{len .Head.Corpus.Vocabulary}} tags</td></tr>
 <tr><td class="name">size</td><td class="name">{{size .Stats.Bytes}}</td></tr>
 <tr><td class="name">grammar</td><td class="name">{{.Head.Corpus.Grammar}}</td></tr>
-<tr><td class="name">generator</td><td class="name">{{.Head.Corpus.Generator}}</td></tr>
-<tr><td class="name">conformance-suites</td><td class="name">{{with .Head.Corpus.Ref}}{{.}}{{else}}<span class="muted">not recorded: pass <code>-corpus-ref</code> to <code>consensus run</code></span>{{end}}</td></tr>
-<tr><td class="name">digest</td><td class="name"><code>{{.Head.Corpus.Digest}}</code></td></tr>
+<tr><td class="name">corpus generator</td><td class="name">{{.Head.Corpus.Generator}}</td></tr>
+<tr><td class="name">conformance-suites commit</td><td class="name">{{with .Head.Corpus.Ref}}{{.}}{{else}}<span class="muted">not recorded: pass <code>-corpus-ref</code> to <code>consensus run</code></span>{{end}}</td></tr>
+<tr><td class="name">corpus digest</td><td class="name"><code>{{.Head.Corpus.Digest}}</code></td></tr>
 </table>
+</details>
 
 <h2>Tested parsers</h2>
 <table>
 <tr><th class="name">id</th><th class="name">implementation</th><th class="name">version</th></tr>
-{{range .Head.Sources}}<tr><td class="name"><a href="source/{{pagename .ID}}.html">{{.ID}}</a>{{if .UnderTest}} (under test){{end}}</td><td class="name">{{.What}}</td><td class="name">{{.Version}}</td></tr>
+{{range .Head.Sources}}<tr><td class="name"><a href="source/{{pagename .ID}}.html">{{.ID}}</a></td><td class="name">{{.What}}</td><td class="name">{{.Version}}</td></tr>
 {{end}}
 </table>
 
+<p>Each parser has a stance file, which records its positions on features and on known areas of divergence.
+The columns of the tables below use these words:</p>
+
+<ul>
+  <li>valid, invalid: whether the corpus grammar accepts the document.</li>
+  <li>settled: a rule the specification settles beyond the grammar, such as an alias naming no anchor or a key written twice.</li>
+  <li>as declared: the stance file declares that the parser refuses a feature the document carries.</li>
+  <li>after the parse: the parser's composer or loader rejects a document the corpus vouches for in syntax only. The report does not score these.</li>
+  <li>explained: a departure in the stance file matches the document. A departure is a position the parser takes, a leniency, or a known defect.</li>
+  <li>tagged: the document carries a tag marking a question the specification leaves open, and the stance file declares no stand on it.</li>
+  <li>a column with none of these words counts cases nothing explains: each is a defect in the parser or in the corpus.</li>
+</ul>
+
+<style>
+{{range $q := .Questions}}#tab-{{$q.ID}}:checked ~ #panel-{{$q.ID}} { display:block; }
+#tab-{{$q.ID}}:checked + label { background:var(--bg); border-bottom-color:var(--bg); font-weight:600; }
+{{end}}</style>
+<div class="tabs">
+{{range $k, $q := .Questions}}<input type="radio" name="question" id="tab-{{$q.ID}}"{{if eq $k 0}} checked{{end}}><label for="tab-{{$q.ID}}">{{$q.Title}}</label>
+{{end}}
 {{range $q := .Questions}}
-<h2>{{$q.Title}}</h2>
+<div class="panel" id="panel-{{$q.ID}}">
 {{range $q.Lead}}<p>{{.}}</p>
 {{end}}
 <div class="wrap"><table>
 <tr><th class="name" rowspan="2">parser</th>{{range $q.Bands}}<th colspan="{{len .Columns}}">{{.Label}}</th>{{end}}</tr>
 <tr>{{range $q.Columns}}<th class="help {{cls .Status}}" title="{{.Help}}">{{.Label}}</th>{{end}}</tr>
 {{range $i := $q.Sources}}{{$s := index $.Head.Sources $i}}
-<tr><td class="name">{{$s.ID}}</td>{{range $col := $q.Columns}}{{$n := count $.Summary $q.ID $i $col.Status}}<td class="{{if $n}}{{cls $col.Status}}{{else}}zero{{end}}">{{with and $n (anchor $.Groups $q.ID $s.ID $col.Status)}}<a href="#{{.}}">{{$n}}</a>{{else}}{{$n}}{{end}}</td>{{end}}</tr>
+<tr><td class="name">{{$s.ID}}</td>{{range $col := $q.Columns}}{{$n := count $.Summary $q.ID $i $col.Status}}<td class="{{if $n}}{{cls $col.Status}}{{else}}zero{{end}}">{{with and $n (cellLink $.Groups $q.ID $s.ID $col.Status)}}<a href="{{.}}">{{$n}}</a>{{else}}{{$n}}{{end}}</td>{{end}}</tr>
 {{end}}
 </table></div>
+
 {{if $q.Split}}<p>{{printf $q.Split (index $.Summary.Splits $q.ID)}}</p>{{end}}
-{{with groupsIn $.Groups $q.ID ""}}<h3>Reasons</h3>
-<p>One group for each cell of the table above, with the cell's count and the reasons behind it: a settled rule, a
-declared stand, a departure from the parser's stance file, an open tag, or nothing at all. Click a count above to
-jump to its group. Each case count links to a page listing the first cases, and its tooltip shows the first
-document.</p>
-{{template "reasons" (withGroups $ .)}}{{end}}
+{{with groupsIn $.Groups $q.ID ""}}<details class="fold">
+<summary><h3>Reasons</h3></summary>
+<p>
+One group for each cell of the table above, with the cell's count and the reasons behind it:
+a settled rule, a declared stand, a departure from the parser's stance file, an open tag, or nothing at all.
+</p>
+<p>
+Click a count above to jump to its group. Each case count links to a page listing the first cases, and its tooltip shows the first document.
+</p>
+{{template "reasons" (withGroups $ .)}}
+</details>{{end}}
+</div>
 {{end}}
+</div>
+
+<script>
+// Show the tab and open the folds holding the element a link points at.
+function reveal() {
+  const el = location.hash && document.getElementById(location.hash.slice(1));
+  if (!el) return;
+  const panel = el.closest(".panel");
+  if (panel) document.getElementById("tab-" + panel.id.replace(/^panel-/, "")).checked = true;
+  for (let d = el.closest("details"); d; d = d.parentElement.closest("details")) d.open = true;
+  el.scrollIntoView();
+}
+addEventListener("hashchange", reveal);
+// A second click on the same link changes no hash, but the fold may have been closed since.
+addEventListener("click", e => { if (e.target.closest('a[href^="#"]')) setTimeout(reveal); });
+reveal();
+</script>
 {{template "bottom" .}}{{end}}

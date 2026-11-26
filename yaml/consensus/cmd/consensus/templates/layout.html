@@ -30,6 +30,12 @@ pre { background:var(--head); padding:8px; overflow:auto; white-space:pre-wrap; 
 .s-same { color:var(--ok); }
 .s-acceptedtagged { color:var(--tag); font-weight:600; }
 .k-defect { color:var(--diff); font-weight:600; }
+.tabs > input { position:absolute; opacity:0; }
+.tabs > label { display:inline-block; padding:6px 16px; margin-top:1em; border:1px solid var(--line); border-bottom:none; background:var(--head); cursor:pointer; }
+.tabs > .panel { display:none; border-top:1px solid var(--line); padding-top:0.5em; }
+.tabs > input:focus-visible + label { outline:2px solid var(--split); }
+details.fold > summary { cursor:pointer; }
+details.fold > summary > h2, details.fold > summary > h3 { display:inline; }
 th.help { text-decoration:underline dotted; text-underline-offset:3px; cursor:help; }
 </style>
 </head>

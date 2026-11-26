@@ -608,6 +608,8 @@ type view struct {
 	Index     int
 	Root      string
 	Truncated int
+	// Lead is the paragraph above a list page's cases, when the page lists more than one tag or feature.
+	Lead string
 	// Sections split a source's page: the differences on untagged cases, then those on tagged cases.
 	Sections []section
 }
@@ -688,15 +690,7 @@ func writeReport(results, dir, stanceDir string, warn io.Writer) error {
 
 			return v
 		},
-		"anchor": func(groups []reasonGroup, question, source, status string) string {
-			for _, g := range groups {
-				if g.Question == question && g.Source == source && g.Status == status {
-					return g.Anchor()
-				}
-			}
-
-			return ""
-		},
+		"cellLink": cellLink,
 	}).ParseFS(templates, "templates/*.html")
 	if err != nil {
 		return err
@@ -813,6 +807,10 @@ func buildPages(h head, base view, judgedCases, notable []judged) map[string]vie
 	}
 
 	cases := notable
+	for name, v := range tripPages(base, judgedCases) {
+		pages[name] = v
+		cases = append(cases, v.Cases...)
+	}
 	for _, r := range base.Reasons {
 		if len(r.Examples) == 0 {
 			continue
@@ -832,6 +830,70 @@ func buildPages(h head, base view, judgedCases, notable []judged) map[string]vie
 	}
 
 	return pages
+}
+
+// tripListed are the round-trip statuses whose cases get a list page.
+var tripListed = []string{statusRTDiff, statusRTUnwrite, statusRTUnread, statusRTCyclic}
+
+// tripPage is the page listing a source's cases with one round-trip status.
+func tripPage(source, status string) string {
+	return "roundtrip/" + pageName(source) + "-" + strings.TrimPrefix(statusClass(status), "s-") + ".html"
+}
+
+// tripPages lays out a list page for each source that runs the round trip and each status of [tripListed].
+func tripPages(base view, judgedCases []judged) map[string]view {
+	columns := map[string]column{}
+	for _, q := range base.Questions {
+		if q.ID != "roundtrip" {
+			continue
+		}
+		for _, col := range q.Columns() {
+			columns[col.Status] = col
+		}
+	}
+
+	pages := map[string]view{}
+	for i, s := range base.Head.Sources {
+		if !s.RoundTrip {
+			continue
+		}
+		for _, status := range tripListed {
+			var listed []judged
+			for _, c := range judgedCases {
+				if c.Status["roundtrip"][i] == status {
+					listed = append(listed, c)
+				}
+			}
+			if len(listed) == 0 {
+				continue
+			}
+			v := base
+			col := columns[status]
+			v.Root, v.Title, v.Lead = "../", s.ID+": round trip, "+col.Label, col.Help
+			v.Cases, v.Truncated = capped(listed)
+			pages[tripPage(s.ID, status)] = v
+		}
+	}
+
+	return pages
+}
+
+// cellLink is the link of a summary cell: its group in the reasons table below, or its round-trip page.
+func cellLink(groups []reasonGroup, question, source, status string) string {
+	if question == "roundtrip" {
+		if slices.Contains(tripListed, status) {
+			return tripPage(source, status)
+		}
+
+		return ""
+	}
+	for _, g := range groups {
+		if g.Question == question && g.Source == source && g.Status == status {
+			return "#" + g.Anchor()
+		}
+	}
+
+	return ""
 }
 
 // listPage is the page listing the notable cases carrying one tag or one feature.

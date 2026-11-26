@@ -45,7 +45,6 @@ type sourceInfo struct {
 	ID        string `json:"id"`
 	What      string `json:"what"`
 	Version   string `json:"version"`
-	UnderTest bool   `json:"underTest,omitempty"`
 	Events    bool   `json:"events,omitempty"`
 	Values    bool   `json:"values,omitempty"`
 	RoundTrip bool   `json:"roundTrip,omitempty"`
@@ -87,7 +86,7 @@ func runCorpus(path string, opts runOptions, w io.Writer, progress io.Writer) er
 	caches := make([]*cache, len(opts.sources))
 	for i, s := range opts.sources {
 		infos[i] = sourceInfo{
-			ID: s.id, What: s.what, Version: s.version(), UnderTest: s.underTest, Events: s.events, Values: s.values,
+			ID: s.id, What: s.what, Version: s.version(), Events: s.events, Values: s.values,
 			RoundTrip: s.roundTrip,
 		}
 		c, err := openCache(opts.cache, s.id, infos[i].Version)

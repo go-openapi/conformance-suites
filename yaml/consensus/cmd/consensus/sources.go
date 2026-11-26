@@ -24,8 +24,6 @@ type source struct {
 	id string
 	// what says which implementation it is, for the report.
 	what string
-	// underTest marks the parser the report scores, as against the references it is compared with.
-	underTest bool
 	// events and values say which answers the source can give: an event stream, a value.
 	events, values bool
 	// roundTrip says the source writes each value back as YAML and reads it again.
@@ -59,8 +57,7 @@ func allSources() []source {
 			available: func() bool { return true }, version: func() string { return goyaml.Version }, answer: yamlv3Answer,
 		},
 		{
-			id: "go-yaml", what: "github.com/go-openapi/go-yaml (Go), the parser under test", underTest: true, values: true,
-			roundTrip: true,
+			id: "go-yaml", what: "github.com/go-openapi/go-yaml (Go)", values: true, roundTrip: true,
 			available: goopenapi.Available, version: goopenapi.Version, answer: goopenapiAnswer,
 		},
 	}

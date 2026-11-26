@@ -8,8 +8,8 @@
 <p>{{.Lead}}</p>
 {{if .Cases}}{{template "caserows" (rows $ .Cases .Truncated)}}{{else}}<p class="muted">None.</p>{{end}}
 {{end}}
-{{else}}<p>The cases carrying {{.Title}} that a parser reads otherwise than the corpus, or that the parsers answer
-differently.</p>
+{{else}}{{with .Lead}}<p>{{.}}</p>{{else}}<p>The cases carrying {{.Title}} that a parser reads otherwise than the corpus,
+or that the parsers answer differently.</p>{{end}}
 {{if .Cases}}{{template "caserows" (rows . .Cases .Truncated)}}{{else}}<p class="muted">None.</p>{{end}}
 {{end}}
 {{template "bottom" .}}{{end}}
