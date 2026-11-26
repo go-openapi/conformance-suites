@@ -28,9 +28,9 @@ departures:
     kind: defect
     because: >-
       the reference parser takes a lone CR as a line break between most lines, but not before an empty line, before
-      a comment at column 0, after a comment that opens the stream, after a "..." marker, or after node properties
-      that end a line: "x\r\r", "x\r# c", "!foo\r- a" and "a:\r  &x\r  b: 1" reject the document, where [28]
-      b-break takes a lone CR
+      a comment at column 0, after a comment that opens the stream, after node properties that end a line, or around
+      a "..." marker next to a comment or a flow node: "x\r\r", "x\r# c", "!foo\r- a" and "a:\r  &x\r  b: 1"
+      reject the document, where [28] b-break takes a lone CR
   - id: bom-before-content
     rejects: valid
     match:
