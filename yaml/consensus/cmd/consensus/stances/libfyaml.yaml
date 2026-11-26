@@ -20,13 +20,80 @@ departures:
   - id: indicator-counted-from-0
     rejects: valid
     match:
-      message: 'block scalar with wrongly indented'
-      src: '(^\x{FEFF}?|[\r\n])(---[ \t]+)?([&!]\S*[ \t]+)*[|>]([-+]?[1-9]|[1-9][-+]?)'
+      message: 'block scalar with wrongly indented|Unsupported directive'
+      src: '(^\x{FEFF}?|[\r\n])[ ]*(---[ \t]+)?([&!]\S*[ \t]+)*[|>]([-+]?[1-9]|[1-9][-+]?)'
     kind: defect
     because: >-
       fy-tool counts a top-level block scalar's indentation indicator from column 0. The root node has n = -1
       ([207] l-bare-document), and [170] sets the content indentation to n+m, so "--- |3" holds its content at
-      2 spaces, as the column 0 content of example 9.5 needs
+      2 spaces, as the column 0 content of example 9.5 needs. After a reserved directive, fy-tool writes the
+      warning "Unsupported directive" first, and the indentation error after it
+  - id: block-scalar-at-node-column
+    rejects: valid
+    match:
+      message: 'missing document start'
+      src: '[|>][-+]?[ \t\r\n#]'
+    kind: defect
+    because: >-
+      fy-tool takes the column of an anchor, or of an indented header, as the indentation of a top-level block
+      scalar, so content at or left of that column ends the document: "&a1 |\nx" and "  >-\n x" are rejected,
+      where the root's n = -1 lets the content start at column 0
+  - id: tab-after-explicit-key
+    rejects: valid
+    match:
+      message: "Indentation used tabs for ':' indicator"
+    kind: defect
+    because: >-
+      fy-tool rejects the ':' of an explicit entry whose '?' a tab follows: "?\ta\n: b" is rejected, where
+      s-separate takes the tab before a scalar key
+  - id: tab-after-block-entry
+    rejects: valid
+    match:
+      message: 'cannot use tab for indentation of block entry|invalid tab as indendation in a mapping'
+    kind: defect
+    because: >-
+      fy-tool rejects a tab after a '-' before a block scalar header, "-\t>-", and before some scalars in nested
+      entries, where s-separate takes the tab
+
+# fy-tool takes some documents the grammar rejects.
+  - id: control-chars-unchecked
+    accepts: invalid
+    match:
+      src: '[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\x{0080}-\x{0084}\x{0086}-\x{009F}]'
+    kind: leniency
+    because: >-
+      fy-tool takes a control character that c-printable excludes, in a scalar or a comment: "-1 # \x1e1" is
+      accepted
+  - id: bom-not-first
+    accepts: invalid
+    match:
+      src: '(?s)^.+\x{FEFF}'
+    kind: leniency
+    because: fy-tool takes a byte order mark after the first byte, where the grammar allows none
+  - id: tag-shorthand-unchecked
+    accepts: invalid
+    match:
+      src: '(^\x{FEFF}?|[\s\[{,])!(?:[A-Za-z0-9-]*!)?[^\s!\[\]{},]*[!\[\]{},][^\s,\]}]'
+    kind: leniency
+    because: >-
+      fy-tool reads a tag shorthand up to the next space, and takes characters ns-tag-char excludes:
+      "!!n-1!int -2" is accepted
+  - id: anchor-against-flow-indicator
+    accepts: invalid
+    match:
+      src: '[&*][^\s\[\]{},]+[\[\]{}]'
+    kind: leniency
+    because: >-
+      fy-tool ends an anchor name at a flow indicator and reads the node right after it, where the grammar needs a
+      separation between the anchor and its node: "&a1{}" is accepted
+  - id: directives-without-document
+    accepts: invalid
+    match:
+      src: '^\x{FEFF}?%[^\r\n]*(?:[\r\n]+(?:[^-\r\n][^\r\n]*)?)*$'
+    kind: leniency
+    because: >-
+      fy-tool takes a stream of directives that no "---" follows, where l-directive-document needs one: "%YA" is
+      accepted
 
 # The Python binding returns numbers past the native ranges as their text.
   - id: wide-integer-as-text
@@ -44,9 +111,42 @@ departures:
   - id: indicator-counted-from-0-value
     differs: value
     match:
-      src: '(^\x{FEFF}?|[\r\n])(---[ \t]+)?([&!]\S*[ \t]+)*[|>]([-+]?[1-9]|[1-9][-+]?)'
+      src: '(^\x{FEFF}?|[\r\n])[ ]*(---[ \t]+)?([&!]\S*[ \t]+)*[|>]([-+]?[1-9]|[1-9][-+]?)'
     kind: defect
     because: >-
       the Python binding counts a top-level block scalar's indentation indicator from column 0, one space deeper
       than n+m with the root's n = -1, so the content loses a leading space: "|3-" over a line of 3 spaces gives
       "" for " "
+  - id: float-as-double
+    differs: value
+    match: {tags: [representation/float-inexact]}
+    kind: position
+    because: >-
+      a float with more digits than a double holds comes back rounded:
+      1.143173161916425300746010 comes back as 1.1431731619164254
+  - id: explicit-merge-not-applied
+    differs: value
+    match: {src: '!(?:[A-Za-z0-9-]*!)?merge|2002:merge>'}
+    kind: position
+    because: >-
+      the Python binding does not apply the merge key, even under an explicit !!merge tag, and keeps "<<" as a
+      plain key
+  - id: ordered-map-as-sequence
+    differs: value
+    match: {tags: [representation/ordered-map]}
+    kind: position
+    because: the Python binding has no ordered map, and returns !!omap as a sequence of one-pair mappings
+  - id: timestamp-as-text
+    differs: value
+    match: {tags: [representation/timestamp]}
+    kind: position
+    because: >-
+      the Python binding returns a !!timestamp as the text written, where the corpus states it in RFC 3339 form:
+      "1900-10-14" for "1900-10-14T00:00:00Z"
+  - id: binary-as-bytes
+    differs: value
+    match: {tags: [representation/binary]}
+    kind: position
+    because: >-
+      the Python binding decodes !!binary into its bytes, which the runner writes as a string, where the corpus
+      states the base64 text: !!binary "Aw==" comes back as "\u0003"
