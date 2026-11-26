@@ -1,16 +1,49 @@
 {{define "grid.html"}}{{template "top" .}}
 <h1>{{.Grid.Title}}</h1>
-<p>Each cell counts the cases a parser reads otherwise than the corpus: first the verdict, then the value.</p>
-<p>The "split" column counts the cases on which the parsers give different verdicts or build different values.</p>
+{{if eq .Grid.Kind "tag"}}
+<p>A tag marks a property of a document that the YAML specification leaves to the implementation,
+or settles beyond the grammar: a key written twice, an alias to an anchor of another document, a tab before a node.
+The corpus vocabulary holds {{len .Head.Corpus.Vocabulary}} tags.
+Each names the stage where the question arises (parse, compose or construct),
+and the answer the specification requires when it settles one.
+Each parser's stance file declares its stand on the tags it has ruled on.
+Hover over a tag to see its stage and rule.</p>
+{{else}}
+<p>A feature is a construct the document contains, as the generator wrote it:
+a flow collection, a CRLF break, an anchor, a "!!" shorthand.
+Features decide nothing about the verdict or the value:
+they show which constructs the differences gather on.</p>
+{{end}}
+<p>Each cell counts, for one parser, the cases on the row that the parser reads otherwise than the corpus
+with no reason in its stance file, or with only an open tag: first the verdict, then the value.
+Differences that a settled rule, a declared stand or a departure explains are not counted here;
+the reasons tables of the summary count them. Click a count to list its cases.</p>
+<p>The split column counts the cases on which the parsers give different verdicts or build different values,
+explained or not. The higher the split, the more the parsers disagree on this corner of the specification.</p>
+
+{{with .Grid.Top}}
+<h2>The {{len .}} most split {{$.Grid.Kind}}s</h2>
 <div class="wrap"><table>
-<tr><th class="name">{{.Grid.Kind}}</th><th>cases</th>{{range .Head.Sources}}<th>{{.ID}}<br><span class="muted">verdict · value</span></th>{{end}}<th class="s-split">split</th></tr>
+{{template "gridhead" $}}
+{{range .}}{{template "gridrow" (gridRow $ .)}}{{end}}
+</table></div>
+{{end}}
+
+<h2>Every {{.Grid.Kind}}</h2>
+<div class="wrap"><table>
+{{template "gridhead" .}}
 {{range $f := .Grid.Families}}
 {{if $f.Name}}<tr><th class="name" colspan="{{len $.Head.Sources}}">{{$f.Name}}</th><th colspan="3"></th></tr>{{end}}
-{{range $r := $f.Rows}}
-<tr><td class="name"><a href="{{$r.Page}}">{{$r.Name}}</a></td><td>{{$r.Cases}}</td>
-{{range $i, $s := $.Head.Sources}}<td><span class="{{if index $r.Verdict $i}}s-diff{{else}}zero{{end}}">{{index $r.Verdict $i}}</span> · <span class="{{if index $r.Value $i}}s-diff{{else}}zero{{end}}">{{index $r.Value $i}}</span></td>{{end}}
-<td class="{{if $r.Splits}}s-split{{else}}zero{{end}}">{{$r.Splits}}</td></tr>
-{{end}}
+{{range $r := $f.Rows}}{{template "gridrow" (gridRow $ $r)}}{{end}}
 {{end}}
 </table></div>
 {{template "bottom" .}}{{end}}
+
+{{define "gridhead"}}<tr><th class="name">{{.Grid.Kind}}</th><th class="help" title="The cases on the row. A case carries several {{.Grid.Kind}}s or none, so the column adds up to more than the corpus.">cases</th>{{range .Head.Sources}}<th class="help" title="verdict: the cases {{.ID}} accepts or rejects otherwise than the corpus, with no reason or only an open tag. value: the cases it builds another value for, likewise.">{{.ID}}<br><span class="muted">verdict · value</span></th>{{end}}<th class="help s-split" title="The cases on which the parsers give different verdicts or build different values, explained or not.">split</th></tr>{{end}}
+
+{{define "gridrow"}}{{$r := .Row}}<tr><td class="name"><a href="{{$r.Page}}"{{with $r.Help}} title="{{.}}"{{end}}>{{$r.Name}}</a></td><td>{{$r.Cases}}</td>
+{{range $i, $s := .View.Head.Sources}}<td>{{template "gridcount" (cell (index $r.Verdict $i) (index $r.VerdictPage $i))}} · {{template "gridcount" (cell (index $r.Value $i) (index $r.ValuePage $i))}}</td>{{end}}
+<td class="{{if $r.Splits}}s-split{{else}}zero{{end}}">{{$r.Splits}}</td></tr>
+{{end}}
+
+{{define "gridcount"}}{{if .N}}<a class="s-diff" href="{{.Page}}">{{.N}}</a>{{else}}<span class="zero">0</span>{{end}}{{end}}

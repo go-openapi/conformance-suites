@@ -5,6 +5,7 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -343,4 +344,53 @@ func TestLabelInNamesValueDifferences(t *testing.T) {
 	assert.Equal(t, "different", labelIn("value", statusDiff))
 	assert.Equal(t, "different, tagged", labelIn("value", statusDiffTag))
 	assert.Equal(t, "rejected, explained", labelIn("value", statusExplained))
+}
+
+func TestWriteReportRendersEveryPage(t *testing.T) {
+	dir := t.TempDir()
+	results := filepath.Join(dir, "results.jsonl")
+	h := head{
+		Corpus: corpusInfo{
+			Tier: "test", Cases: 2,
+			Vocabulary: []suite.TagSpec{{Tag: "key/duplicate", Stage: "compose", Settled: "reject", Because: "3.2.1.1"}},
+		},
+		Sources: []sourceInfo{{ID: "a", Values: true, RoundTrip: true}, {ID: "b", Values: true}},
+	}
+	stated := &suite.Meaning{JSON: json.RawMessage(`{"a":1}`)}
+	accept := consensus.Answer{Verdict: consensus.Accept, Docs: 1, JSON: []string{`{"a":1}`}}
+	refuse := consensus.Answer{Verdict: consensus.Refuse, RefusedBy: consensus.Parser}
+	records := []record{
+		{
+			Name: "split", Src: []byte("a: 1\n"), WellFormed: true, Features: []string{"presentation/document-marker"},
+			Meaning: stated, Answers: []consensus.Answer{withTrip(accept, consensus.Different), refuse},
+		},
+		{
+			Name: "duplicate", Src: []byte("a: 1\na: 1\n"), WellFormed: true, Tags: []string{"key/duplicate"},
+			Answers: []consensus.Answer{refuse, accept},
+		},
+	}
+	f, err := os.Create(results)
+	assert.NoError(t, err)
+	enc := json.NewEncoder(f)
+	assert.NoError(t, enc.Encode(h))
+	for _, r := range records {
+		assert.NoError(t, enc.Encode(r))
+	}
+	assert.NoError(t, f.Close())
+
+	out := filepath.Join(dir, "report")
+	assert.NoError(t, writeReport(results, out, "", io.Discard))
+	for _, page := range []string{
+		"index.html", "tags.html", "features.html", "source/a.html",
+		"roundtrip/a-different.html", "feature/b/presentation--document-marker-verdict.html",
+	} {
+		_, err := os.Stat(filepath.Join(out, page))
+		assert.NoError(t, err, page)
+	}
+}
+
+func withTrip(a consensus.Answer, result consensus.RoundTripResult) consensus.Answer {
+	a.RoundTrip = &consensus.RoundTrip{Result: result}
+
+	return a
 }

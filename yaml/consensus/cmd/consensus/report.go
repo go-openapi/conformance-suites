@@ -20,6 +20,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/go-openapi/conformance-suites/suite"
 	"github.com/go-openapi/conformance-suites/yaml/consensus"
 )
 
@@ -500,7 +501,12 @@ func summarize(cases []judged, n int) summary {
 type grid struct {
 	Title, Kind string
 	Families    []family
+	// Top are the rows with the most split cases, at most [topSplits], leaving out "(none)".
+	Top []gridRow
 }
+
+// topSplits caps the grid's table of the most split rows.
+const topSplits = 10
 
 type family struct {
 	Name string
@@ -511,17 +517,50 @@ type gridRow struct {
 	Name  string
 	Page  string
 	Cases int
+	// Help is the tooltip of the row's name: a tag's stage and rule.
+	Help string
 	// Verdict and Value are each source's difference count against the corpus.
 	Verdict, Value []int
-	Splits         int
+	// VerdictPage and ValuePage are each source's page listing the cases its count holds.
+	VerdictPage, ValuePage []string
+	Splits                 int
+
+	verdictCases, valueCases [][]judged
 }
 
-func buildGrid(title, kind string, cases []judged, n int, keys func(judged) []string, all []string) grid {
+// gridRowView is what the grid's row template receives: the page's view, for the sources, and the row.
+type gridRowView struct {
+	View view
+	Row  gridRow
+}
+
+// gridCell is one count of a grid row, and the page listing its cases.
+type gridCell struct {
+	N    int
+	Page string
+}
+
+// cellPage is the page listing the cases one source reads otherwise than the corpus on one row of a grid.
+func cellPage(kind, row, source, question string) string {
+	return kind + "/" + pageName(source) + "/" + pageName(row) + "-" + question + ".html"
+}
+
+// buildGrid counts the differences by row. all names the rows to show even with no case, and help holds the
+// tooltip of a row's name.
+func buildGrid(title, kind string, cases []judged, sources []sourceInfo, keys func(judged) []string, all []string,
+	help map[string]string,
+) grid {
+	n := len(sources)
 	rows := map[string]*gridRow{}
 	row := func(name string) *gridRow {
 		r, ok := rows[name]
 		if !ok {
-			r = &gridRow{Name: name, Page: kind + "/" + pageName(name) + ".html", Verdict: make([]int, n), Value: make([]int, n)}
+			r = &gridRow{
+				Name: name, Page: kind + "/" + pageName(name) + ".html", Help: help[name],
+				Verdict: make([]int, n), Value: make([]int, n),
+				VerdictPage: make([]string, n), ValuePage: make([]string, n),
+				verdictCases: make([][]judged, n), valueCases: make([][]judged, n),
+			}
 			rows[name] = r
 		}
 
@@ -541,9 +580,13 @@ func buildGrid(title, kind string, cases []judged, n int, keys func(judged) []st
 			for i := range n {
 				if isDiff(c.Status["verdict"][i]) {
 					r.Verdict[i]++
+					r.VerdictPage[i] = cellPage(kind, name, sources[i].ID, "verdict")
+					r.verdictCases[i] = append(r.verdictCases[i], c)
 				}
 				if isDiff(c.Status["value"][i]) {
 					r.Value[i]++
+					r.ValuePage[i] = cellPage(kind, name, sources[i].ID, "value")
+					r.valueCases[i] = append(r.valueCases[i], c)
 				}
 			}
 			if c.Split["verdict"] || c.Split["value"] {
@@ -571,6 +614,22 @@ func buildGrid(title, kind string, cases []judged, n int, keys func(judged) []st
 		r := byFamily[f]
 		sort.Slice(r, func(a, b int) bool { return r[a].Name < r[b].Name })
 		g.Families = append(g.Families, family{Name: f, Rows: r})
+	}
+
+	for _, r := range rows {
+		if r.Name != "(none)" && r.Splits > 0 {
+			g.Top = append(g.Top, *r)
+		}
+	}
+	sort.Slice(g.Top, func(a, b int) bool {
+		if g.Top[a].Splits != g.Top[b].Splits {
+			return g.Top[a].Splits > g.Top[b].Splits
+		}
+
+		return g.Top[a].Name < g.Top[b].Name
+	})
+	if len(g.Top) > topSplits {
+		g.Top = g.Top[:topSplits]
 	}
 
 	return g
@@ -705,6 +764,8 @@ func writeReport(results, dir, stanceDir string, warn io.Writer) error {
 			return v
 		},
 		"cellLink": cellLink,
+		"gridRow":  func(v view, r gridRow) gridRowView { return gridRowView{View: v, Row: r} },
+		"cell":     func(n int, page string) gridCell { return gridCell{N: n, Page: page} },
 	}).ParseFS(templates, "templates/*.html")
 	if err != nil {
 		return err
@@ -750,16 +811,18 @@ func writeReport(results, dir, stanceDir string, warn io.Writer) error {
 // buildPages lays out every page of the report but the templates' own work: the summary, the two grids with a
 // list page per row, a page per source, and a page per notable case.
 func buildPages(h head, base view, judgedCases, notable []judged) map[string]view {
-	n := len(h.Sources)
 	pages := map[string]view{"index.html": base}
 
 	vocabulary := make([]string, 0, len(h.Corpus.Vocabulary))
+	help := map[string]string{}
 	for _, spec := range h.Corpus.Vocabulary {
 		vocabulary = append(vocabulary, spec.Tag)
+		help[spec.Tag] = tagHelp(spec)
 	}
-	tags := buildGrid("Differences by tag", "tag", judgedCases, n, func(c judged) []string { return c.Tags }, vocabulary)
-	features := buildGrid("Differences by feature", "feature", judgedCases, n,
-		func(c judged) []string { return c.Features }, nil)
+	tags := buildGrid("Differences by tag", "tag", judgedCases, h.Sources, func(c judged) []string { return c.Tags },
+		vocabulary, help)
+	features := buildGrid("Differences by feature", "feature", judgedCases, h.Sources,
+		func(c judged) []string { return c.Features }, nil, nil)
 	for _, g := range []grid{tags, features} {
 		v := base
 		v.Grid = g
@@ -767,6 +830,25 @@ func buildPages(h head, base view, judgedCases, notable []judged) map[string]vie
 		for _, f := range g.Families {
 			for _, r := range f.Rows {
 				pages[r.Page] = listPage(base, g.Kind, r.Name, notable)
+				for i, s := range h.Sources {
+					for _, cell := range []struct {
+						page, what string
+						cases      []judged
+					}{
+						{r.VerdictPage[i], "accepts or rejects otherwise than the corpus", r.verdictCases[i]},
+						{r.ValuePage[i], "builds another value for", r.valueCases[i]},
+					} {
+						if cell.page == "" {
+							continue
+						}
+						cv := base
+						cv.Root, cv.Title = "../../", s.ID+": "+r.Name
+						cv.Lead = fmt.Sprintf("The cases carrying %s that %s %s, with no reason in its stance file "+
+							"or only an open tag. Hover over a parser's cell to see the reason.", r.Name, s.ID, cell.what)
+						cv.Cases, cv.Truncated = capped(cell.cases)
+						pages[cell.page] = cv
+					}
+				}
 			}
 		}
 	}
@@ -908,6 +990,21 @@ func cellLink(groups []reasonGroup, question, source, status string) string {
 	}
 
 	return ""
+}
+
+// tagHelp is the tooltip of a tag: its stage, the rule when the specification settles it, and why.
+func tagHelp(spec suite.TagSpec) string {
+	text := "Arises at " + suite.StageOf(spec.Stage).String() + "."
+	if spec.Settled != "" {
+		text += " Settled: a parser must " + spec.Settled + " it."
+	} else {
+		text += " The specification leaves it open."
+	}
+	if spec.Because != "" {
+		text += " " + spec.Because
+	}
+
+	return text
 }
 
 // listPage is the page listing the notable cases carrying one tag or one feature.
