@@ -38,8 +38,8 @@ import (
 //
 // # What a signature deliberately throws away
 //
-// The wording. `sequence end token ']' not found` and `sequence end token '}'
-// not found` are one signature, and rephrasing a message does not change its
+// The wording. `found ']' with no '[' to close` and `found '}' with no '{' to
+// close` are one signature, and rephrasing a message does not change its
 // signature at all. That is the point: a message is a stronger claim than a
 // verdict and drifts faster, so pinning whole messages would fail every time
 // somebody improved one. What survives is how many different things the parser
@@ -107,8 +107,8 @@ type Refusal struct {
 	// A substring rather than the whole message, and rather than a
 	// [RefusalSignature]. The words around it get rephrased and a signature
 	// throws them away, so both of those would let `'@' is a reserved
-	// character` decay into `found an invalid token` unnoticed. This is the
-	// noun the message would lose.
+	// character` decay into `found text the scanner could not read as a token`
+	// unnoticed. This is the noun the message would lose.
 	Says string
 	// WellFormed says whether YAML 1.2 accepts the document.
 	//
@@ -141,7 +141,7 @@ func Refusals() []Refusal {
 		},
 		{
 			Name: "a tab in the indentation of a nested mapping entry",
-			Src:  "a:\n \tb: 1\n", Says: "tab character cannot stand for the indentation a mapping entry needs",
+			Src:  "a:\n \tb: 1\n", Says: "a tab cannot stand for the indentation a mapping entry needs",
 		},
 		{
 			// A tab counts as separation and not as indentation, so it is
@@ -153,30 +153,30 @@ func Refusals() []Refusal {
 			// the retired one cut the origin with TrimPrefix(origin, " ") and
 			// so gave a different message for two spaces than for one.
 			Name: "a tab in front of a mapping key",
-			Src:  " \ta: 1\n", Says: "tab character cannot stand for the indentation a mapping entry needs",
+			Src:  " \ta: 1\n", Says: "a tab cannot stand for the indentation a mapping entry needs",
 		},
 		{
 			// The same fault two spaces in. It drew the other message until the
 			// checks were joined, which is what made the pair worth pinning.
 			Name: "a tab in front of a mapping key, further in",
-			Src:  "  \ta: 1\n", Says: "tab character cannot stand for the indentation a mapping entry needs",
+			Src:  "  \ta: 1\n", Says: "a tab cannot stand for the indentation a mapping entry needs",
 		},
 		{
 			// A quoted key resets the origin buffer, so the retired check
 			// missed this one and it read.
 			Name: "a tab in front of a quoted mapping key",
-			Src:  "\t\"a\": 1\n", Says: "tab character cannot stand for the indentation a mapping entry needs",
+			Src:  "\t\"a\": 1\n", Says: "a tab cannot stand for the indentation a mapping entry needs",
 		},
 		{
 			// Nothing is at the start of the line here: the tab is in the
 			// separation the '-' left behind, which is a second run and the
 			// reason indentHoldsATab alone is not the question.
 			Name: "a tab after a sequence entry's dash",
-			Src:  "- \ta: 1\n", Says: "tab character cannot stand for the indentation a mapping entry needs",
+			Src:  "- \ta: 1\n", Says: "a tab cannot stand for the indentation a mapping entry needs",
 		},
 		{
 			Name: "a tab before a nested sequence entry",
-			Src:  "- \t- 1\n", Says: "tab character cannot use as a sequence delimiter",
+			Src:  "- \t- 1\n", Says: "a tab cannot stand for the indentation a sequence entry needs",
 		},
 		{
 			// A tab is separation and ends a property, so the alias here names
@@ -193,7 +193,7 @@ func Refusals() []Refusal {
 			// Pinned on 2026-09-13, when the byte order mark reshuffled the
 			// draw past it.
 			Name: "an anchor alone at an empty entry's own column",
-			Src:  "a:\n&x\n", Says: "anchor is not allowed in this context",
+			Src:  "a:\n&x\n", Says: "anchor is not indented past its key",
 		},
 		{
 			// Two the yamlcorpus/28 draw stopped reaching, pinned on the same
@@ -202,13 +202,13 @@ func Refusals() []Refusal {
 			// than reliable, and the escape axis reshuffled which documents
 			// reach what.
 			Name: "a block sequence entry on a mapping value's own line",
-			Src:  "a: - 1\nb: - 2\n", Says: "block sequence entries are not allowed in this context",
+			Src:  "a: - 1\nb: - 2\n", Says: "a block sequence cannot start on the line of its key",
 		},
 		{
 			// 7.4 closes a flow collection before the ":" that keys on it, so a
 			// "]" with nothing open is not a key and not a scalar either.
 			Name: "a flow collection's closing bracket used as a mapping key",
-			Src:  "]: 1\n", Says: "found an invalid key for this map",
+			Src:  "]: 1\n", Says: "found ']' with no '[' to close",
 		},
 		{
 			// Pinned on 2026-09-13, when the yamlcorpus/25 draw stopped
@@ -229,22 +229,22 @@ func Refusals() []Refusal {
 		},
 		{
 			Name: "a value after a document separator",
-			Src:  "--- a\n--- b: 1\n", Says: "cannot be placed after document separator",
+			Src:  "--- a\n--- b: 1\n", Says: "a block mapping cannot start on the '---' line",
 		},
 		{
 			// The escape is two hex digits and this has one, so the parser
 			// reads the closing quote as the second and complains about it
 			// rather than about the length.
 			Name: "an eight-bit escape with a digit missing",
-			Src:  `"\x1"` + "\n", Says: "is not a hexadecimal digit",
+			Src:  `"\x1"` + "\n", Says: `\x takes two hexadecimal digits`,
 		},
 		{
 			Name: "a surrogate pair cut short",
-			Src:  `"\uD800\uD"` + "\n", Says: "not enough length for escaped",
+			Src:  `"\uD800\uD"` + "\n", Says: `a high surrogate must be followed by a \u low surrogate`,
 		},
 		{
 			Name: "a low surrogate whose digits are not hexadecimal",
-			Src:  `"\uD800\uDCZZ"` + "\n", Says: "not a hexadecimal digit in the low surrogate",
+			Src:  `"\uD800\uDCZZ"` + "\n", Says: `\u takes four hexadecimal digits`,
 		},
 		{
 			// A high surrogate has to be followed by a low one, and this is
@@ -255,7 +255,7 @@ func Refusals() []Refusal {
 			// message is the only statement anywhere that this library applies
 			// it.
 			Name: "a high surrogate followed by something that is not a low one",
-			Src:  `"\uD800\uAAAA"` + "\n", Says: "after high surrogate",
+			Src:  `"\uD800\uAAAA"` + "\n", Says: `a high surrogate must be followed by a \u low surrogate`,
 			WellFormed: true,
 		},
 		{
@@ -264,7 +264,7 @@ func Refusals() []Refusal {
 			// "TAG". patchReservedDirective keeps YAML and TAG out of a
 			// reserved directive, so the grammar refuses it too.
 			Name: "a TAG directive with no prefix",
-			Src:  "%TAG !e!\n---\nx\n", Says: "unexpected format TAG directive",
+			Src:  "%TAG !e!\n---\nx\n", Says: "the TAG directive takes a handle and a prefix",
 		},
 		{
 			Name: "a reserved character opening a document",
@@ -306,11 +306,11 @@ func Refusals() []Refusal {
 		},
 		{
 			Name: "a flow sequence that is never closed",
-			Src:  "a: [1\n", Says: "sequence end token",
+			Src:  "a: [1\n", Says: "a flow sequence is not closed by ']'",
 		},
 		{
 			Name: "a flow mapping that is never closed",
-			Src:  "a: {b: 1\n", Says: "flow mapping end token",
+			Src:  "a: {b: 1\n", Says: "a flow mapping is not closed by '}'",
 		},
 		{
 			Name: "a character a YAML stream may not hold",
@@ -335,7 +335,7 @@ func Refusals() []Refusal {
 			// libfyaml 1.0.0b1 reads {"a": null} and drops the anchor. The
 			// recognizer refuses it, which is what this corpus goes by.
 			Name: "an anchor standing alone where an entry should be",
-			Src:  "a:\n&x\n", Says: "anchor is not allowed in this context",
+			Src:  "a:\n&x\n", Says: "anchor is not indented past its key",
 		},
 		{
 			// Both halves of validateAnchorName's second case, which the
@@ -353,11 +353,11 @@ func Refusals() []Refusal {
 			// 6.9.2 gives a node one anchor, and the generator writes one per
 			// node by construction, so nothing it draws reaches this.
 			Name: "two anchors on one node",
-			Src:  "a: &x\n  &y 1\n", Says: "anchors cannot be used consecutively",
+			Src:  "a: &x\n  &y 1\n", Says: "a node takes at most one anchor",
 		},
 		{
 			Name: "two anchors on one node, with a tag between them",
-			Src:  "&x !a\n&y y\n", Says: "anchors cannot be used consecutively",
+			Src:  "&x !a\n&y y\n", Says: "a node takes at most one anchor",
 		},
 		{
 			// 6.9.1 gives a node one tag as well. A line break may separate
@@ -372,7 +372,7 @@ func Refusals() []Refusal {
 			// break in the right place, which the draws stopped doing when the
 			// version axis shifted them.
 			Name: "a flow sequence entry whose key ends a line",
-			Src:  "[a\n: 1]\n", Says: "map key definition includes an implicit line break",
+			Src:  "[a\n: 1]\n", Says: "an implicit key must stand on one line",
 		},
 	}
 }

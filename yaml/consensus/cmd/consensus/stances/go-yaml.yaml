@@ -44,7 +44,7 @@ departures:
   - id: merge-key-without-mapping
     rejects: valid
     match:
-      message: 'could not find merge key'
+      message: 'a !!merge tag must stand on'
     kind: position
     because: >-
       go-yaml reads a !!merge key only when a mapping, an alias to one, or a sequence of them follows,
