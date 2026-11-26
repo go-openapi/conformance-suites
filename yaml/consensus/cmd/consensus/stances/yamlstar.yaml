@@ -3,10 +3,107 @@ parser: yamlstar
 at: construct
 because: the yaml CLI of YAMLStar parses with its own reference parser and loads the value
 
+stands:
+  key/duplicate:
+    stand: either
+    because: >-
+      the loader does not check this settled rule: it keeps the last value of a key written twice, so
+      "a: 1\na: 2" loads as {"a": 2}
+  anchor/cyclic-meaning:
+    stand: refuses
+    because: >-
+      the loader knows an anchor only once its node ends, so an alias inside that node names nothing:
+      "a: &x [ *x ]" rejects the document with "Unknown anchor: x"
+  merge/into-non-mapping:
+    stand: refuses
+    because: the loader rejects a merge key whose value is not a mapping or a sequence of mappings
+  merge/key-alone: refuses
+
 departures:
+  - id: lone-cr-break
+    rejects: valid
+    match:
+      message: 'Parser finished before end of input'
+      src: '\r[\r#]|^\x{FEFF}?[ \t]*#[^\r\n]*\r(?:[^\n]|$)|(^|[ \t\r\n])[&!][^ \t\r\n]*([ \t]+[&!][^ \t\r\n]*)?([ \t]+#[^\r\n]*)?[ \t]*\r(?:[^\n]|$)|(^|[\r\n])\.\.\.[ \t]*(#[^\r\n]*)?\r(?:[^\n]|$)'
+    kind: defect
+    because: >-
+      the reference parser takes a lone CR as a line break between most lines, but not before an empty line, before
+      a comment at column 0, after a comment that opens the stream, after a "..." marker, or after node properties
+      that end a line: "x\r\r", "x\r# c", "!foo\r- a" and "a:\r  &x\r  b: 1" reject the document, where [28]
+      b-break takes a lone CR
+  - id: bom-before-content
+    rejects: valid
+    match:
+      message: 'Parser finished before end of input'
+      src: '^\x{FEFF}([^-% \t\r\n]|-[^-]|--[^-])'
+    kind: defect
+    because: >-
+      the reference parser takes a byte order mark before "---", a directive, a space or a break, and rejects one
+      right before content or a comment, where [202] l-document-prefix takes it: "\ufeffa: 1" rejects the document
+  - id: yaml-directive-unchecked
+    accepts: invalid
+    match:
+      src: '(?m)^%YAML(?:[ \t]*$|[^ \t]|[ \t]+(?:[^0-9 \t]|[0-9]+(?:$|[^.0-9]|\.(?:$|[^0-9]|[0-9]+[^0-9 \t\r\n#]))))'
+    kind: leniency
+    because: the reference parser does not check the version number of a %YAML directive, as perlref does not
+  - id: tag-without-constructor
+    rejects: valid
+    match:
+      message: 'Unknown tag: '
+    kind: position
+    because: >-
+      the loader builds values for the core schema's tags only, and rejects any other tag, local or global:
+      "!foo", "!!merge", "!!timestamp", "!!binary"
+  - id: integer-past-long
+    rejects: valid
+    match:
+      message: 'YAML integer out of supported range'
+    kind: position
+    because: >-
+      the loader builds integers as 64-bit longs, and rejects one past their range, written in decimal, octal or
+      hexadecimal
+  - id: escape-as-decimal
+    differs: value
+    match: {src: '\\[xuU][0-9A-Fa-f]'}
+    kind: defect
+    because: >-
+      the reference parser writes a \x, \u or \U escape as the decimal number of its code point instead of the
+      character: "\u00e9" comes back as "233", and "\x2D\x61" as "4597"
+  - id: int-non-decimal-as-string
+    differs: value
+    match: {src: '(^|[\s:\[{,-])[-+]?0[xo][0-9A-Fa-f]+'}
+    kind: defect
+    because: >-
+      the loader leaves an integer written 0x or 0o a string, where the core schema reads 0x1A as 26 and 0o17 as 15
+  - id: block-scalar-lone-cr
+    differs: value
+    match: {src: '[|>][^\r\n]*\r([^\n]|$)'}
+    kind: defect
+    because: >-
+      in a block scalar broken by lone CRs, the reference parser keeps the first space of the indentation as
+      content: "a: |\r  x\r" gives " x\n" for "x\n"
+  - id: merge-key-applied
+    differs: value
+    match: {src: '<<'}
+    kind: position
+    because: >-
+      the loader applies the 1.1 merge key: it merges the mapping under "<<" into the mapping that holds it, where the
+      core schema keeps "<<" as a plain key
+  - id: ordered-map-as-sequence
+    differs: value
+    match: {tags: [representation/ordered-map]}
+    kind: position
+    because: the loader has no ordered map, and builds !!omap as a sequence of one-pair mappings
+  - id: float-as-double
+    differs: value
+    match: {tags: [representation/float-inexact]}
+    kind: position
+    because: >-
+      a float with more digits than a double holds comes back rounded:
+      2.8111461674232220341922547372150453 comes back as 2.811146167423222
   - id: float-past-double
     differs: value
-    match: {tags: [representation/float-out-of-range]}
+    match: {src: '[0-9.][eE][-+]?[0-9]{3,}'}
     kind: position
     because: >-
       floats are doubles: one too small comes back as 0, and one too large as Infinity, which JSON cannot write,
