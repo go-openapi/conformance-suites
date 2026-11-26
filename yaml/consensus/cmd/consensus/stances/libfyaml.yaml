@@ -112,6 +112,15 @@ departures:
     because: >-
       fy-tool ends an anchor name at a flow indicator and reads the node right after it, where the grammar needs a
       separation between the anchor and its node: "&a1{}" is accepted
+  - id: plain-question-mark-before-flow-indicator
+    accepts: invalid
+    match:
+      src: '(^|[\[{,:\s])\?[\]},]'
+    kind: leniency
+    because: >-
+      fy-tool reads a lone '?' right before ']', '}' or ',' as the plain scalar "?", where [126] ns-plain-first
+      needs an ns-plain-safe character after it and [150] a separation after the '?' indicator: "[?]" is accepted
+      as ["?"]
   - id: directives-without-document
     accepts: invalid
     match:

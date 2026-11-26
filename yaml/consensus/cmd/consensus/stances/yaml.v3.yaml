@@ -192,6 +192,15 @@ departures:
     because: >-
       yaml.v3 takes a comment right after a closing quote or bracket, where s-b-comment needs a space before
       the '#': "{}# c1" is accepted
+  - id: question-mark-before-closing-brace
+    accepts: invalid
+    match:
+      src: '(^|[{,:\s])\?\}'
+    kind: leniency
+    because: >-
+      yaml.v3 takes a lone '?' right before '}' as an explicit key with an empty key and value, where [142] needs a
+      separation after the '?' indicator and [126] keeps it from opening a plain scalar: "{?}" is accepted. It
+      rejects "[?]", and the valid "[? ]" with it
 
 # yaml.v3 decodes numbers into Go's native types, so a number past their range changes. YAML leaves the range and
 # accuracy to the implementation (10.2.1.4), and the corpus states the exact value.
