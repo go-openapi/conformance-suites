@@ -53,7 +53,7 @@ th.help { text-decoration:underline dotted; text-underline-offset:3px; cursor:he
 {{define "reasons"}}
 <div class="wrap"><table>
 <tr><th class="name">parser</th><th class="name">column</th><th>count</th><th class="name">reason</th><th class="name">kind</th><th>cases</th></tr>
-{{range $g := .Groups}}{{range $k, $r := $g.Rows}}<tr{{if eq $k 0}} id="{{$g.Anchor}}"{{end}}>{{if eq $k 0}}<td class="name" rowspan="{{$g.Span}}">{{$g.Source}}</td><td class="name" rowspan="{{$g.Span}}"><span class="{{cls $g.Status}}">{{label $g.Status}}</span></td><td rowspan="{{$g.Span}}"><b>{{$g.Count}}</b></td>{{end}}<td class="name">{{$r.Text}}</td><td class="name{{if eq $r.Kind "defect"}} k-defect{{end}}">{{$r.Kind}}</td><td class="{{if not $r.Cases}}s-diff{{end}}">{{if $r.Examples}}<a href="{{$.Root}}{{$r.Page}}" title="{{$r.Example}}">{{$r.Cases}}</a>{{else}}{{$r.Cases}}{{end}}</td></tr>
+{{range $g := .Groups}}{{range $k, $r := $g.Rows}}<tr{{if eq $k 0}} id="{{$g.Anchor}}"{{end}}>{{if eq $k 0}}<td class="name" rowspan="{{$g.Span}}">{{$g.Source}}</td><td class="name" rowspan="{{$g.Span}}"><span class="{{cls $g.Status}}">{{labelIn $g.Question $g.Status}}</span></td><td rowspan="{{$g.Span}}"><b>{{$g.Count}}</b></td>{{end}}<td class="name">{{$r.Text}}</td><td class="name{{if eq $r.Kind "defect"}} k-defect{{end}}">{{$r.Kind}}</td><td class="{{if not $r.Cases}}s-diff{{end}}">{{if $r.Examples}}<a href="{{$.Root}}{{$r.Page}}" title="{{$r.Example}}">{{$r.Cases}}</a>{{else}}{{$r.Cases}}{{end}}</td></tr>
 {{end}}{{if $g.Rest}}<tr class="muted"><td class="name">the rest agree with the corpus and need no reason</td><td></td><td>{{$g.Rest}}</td></tr>
 {{end}}{{end}}
 </table></div>
@@ -66,7 +66,7 @@ th.help { text-decoration:underline dotted; text-underline-offset:3px; cursor:he
 <tr><td class="name"><a href="{{$.Root}}case/{{$c.Short}}.html">{{$c.Name}}</a></td>
 <td class="name">{{range $c.Tags}}{{.}} {{end}}</td>
 <td>{{if $c.WellFormed}}accept{{else}}refuse{{end}}</td>
-{{range $i, $s := $.Head.Sources}}{{$v := status $c "verdict" $i}}{{$x := status $c "value" $i}}<td{{with why $c $i}} title="{{.Text}}"{{end}}><span class="{{cls $v}}">{{label $v}}</span>{{if or (eq $x "diff") (eq $x "diff, tagged") (eq $x "different, explained")}}<br><span class="{{cls $x}}"{{with valueWhy $c $i}} title="{{.Text}}"{{end}}>value {{$x}}</span>{{end}}{{$rt := status $c "roundtrip" $i}}{{if or (eq $rt "different") (eq $rt "unwritable") (eq $rt "unreadable")}}<br><span class="s-diff">round trip {{$rt}}</span>{{end}}</td>{{end}}
+{{range $i, $s := $.Head.Sources}}{{$v := status $c "verdict" $i}}{{$x := status $c "value" $i}}<td{{with why $c $i}} title="{{.Text}}"{{end}}><span class="{{cls $v}}">{{label $v}}</span>{{if or (eq $x "diff") (eq $x "diff, tagged") (eq $x "different, explained")}}<br><span class="{{cls $x}}"{{with valueWhy $c $i}} title="{{.Text}}"{{end}}>value {{labelIn "value" $x}}</span>{{end}}{{$rt := status $c "roundtrip" $i}}{{if or (eq $rt "different") (eq $rt "unwritable") (eq $rt "unreadable")}}<br><span class="s-diff">round trip {{$rt}}</span>{{end}}</td>{{end}}
 </tr>
 {{end}}
 </table></div>

@@ -400,6 +400,21 @@ func groupReasons(reasons []reasonCount, sum summary, questions []question, sour
 	return out
 }
 
+// labelIn is the label of a status on one question: a value status that shares a verdict status's name is
+// labelled as a difference of value.
+func labelIn(question, status string) string {
+	if question == "value" {
+		switch status {
+		case statusDiff:
+			return "different"
+		case statusDiffTag:
+			return "different, tagged"
+		}
+	}
+
+	return statusLabel(status)
+}
+
 // statusLabel is the column label of a verdict status, or the status itself.
 func statusLabel(status string) string {
 	if label, ok := verdictLabels[status]; ok {

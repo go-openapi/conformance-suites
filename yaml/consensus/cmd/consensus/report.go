@@ -665,6 +665,7 @@ func writeReport(results, dir, stanceDir string, warn io.Writer) error {
 		"answerOf": func(c judged, i int) consensus.Answer { return c.Answers[i] },
 		"why":      func(c judged, i int) *reason { return c.Why[i] },
 		"label":    statusLabel,
+		"labelIn":  labelIn,
 		"valueWhy": func(c judged, i int) *reason { return c.ValueWhy[i] },
 		"lines":    func(s []string) string { return strings.Join(s, "\n") },
 		"doc":      document,
@@ -829,7 +830,7 @@ func buildPages(h head, base view, judgedCases, notable []judged) map[string]vie
 			continue
 		}
 		v := base
-		v.Root, v.Reason, v.Title = "../", r, r.Source+": "+statusLabel(r.Status)
+		v.Root, v.Reason, v.Title = "../", r, r.Source+": "+labelIn(r.Question, r.Status)
 		v.Cases, v.Truncated = r.Examples, r.Cases-len(r.Examples)
 		pages[r.Page] = v
 		// A reason may cover a case that is otherwise unremarkable, such as an acceptance under a declined rule.

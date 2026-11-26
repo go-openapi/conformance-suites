@@ -337,3 +337,10 @@ func TestRefusalReasonCarriesTheVerdictsReason(t *testing.T) {
 		})
 	}
 }
+
+func TestLabelInNamesValueDifferences(t *testing.T) {
+	assert.Equal(t, "rejected", labelIn("verdict", statusDiff))
+	assert.Equal(t, "different", labelIn("value", statusDiff))
+	assert.Equal(t, "different, tagged", labelIn("value", statusDiffTag))
+	assert.Equal(t, "rejected, explained", labelIn("value", statusExplained))
+}
