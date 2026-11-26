@@ -191,6 +191,16 @@ departures:
       a float with more digits than a float64 holds comes back rounded:
       1.0146890218152647300502110008166221703622 comes back as 1.0146890218152647
 
+  - id: indicator-counted-from-0-value
+    differs: value
+    match:
+      src: '(^\x{FEFF}?|[\r\n])(---[ \t]+)?([&!]\S*[ \t]+)*[|>]([-+]?[1-9]|[1-9][-+]?)'
+    kind: defect
+    because: >-
+      yaml.v3 counts a top-level block scalar's indentation indicator from column 0, one space deeper than n+m with
+      the root's n = -1. The content loses a leading space, "|3-" over a line of 3 spaces gives "" for " ", and a
+      line at the spec's indentation falls outside the scalar: "|2-" over " #a" gives "" for "#a"
+
 # yaml.v3 resolves plain scalars and tags with parts of the YAML 1.1 types, where the corpus states the value under
 # the 1.2 core schema.
   - id: merge-key-applied

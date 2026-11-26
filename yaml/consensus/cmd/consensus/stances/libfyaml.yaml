@@ -41,3 +41,12 @@ departures:
     match: {tags: [representation/float-out-of-range]}
     kind: position
     because: the Python binding returns a float past a double's range as a string, "-9.948e-328"
+  - id: indicator-counted-from-0-value
+    differs: value
+    match:
+      src: '(^\x{FEFF}?|[\r\n])(---[ \t]+)?([&!]\S*[ \t]+)*[|>]([-+]?[1-9]|[1-9][-+]?)'
+    kind: defect
+    because: >-
+      the Python binding counts a top-level block scalar's indentation indicator from column 0, one space deeper
+      than n+m with the root's n = -1, so the content loses a leading space: "|3-" over a line of 3 spaces gives
+      "" for " "
