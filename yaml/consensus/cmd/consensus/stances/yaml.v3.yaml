@@ -57,6 +57,16 @@ departures:
     because: >-
       a top-level block scalar without an indentation indicator may hold its content at column 0, as in spec
       example 9.5; yaml.v3 ends the scalar empty instead, then rejects the content as a second document
+  - id: indicator-counted-from-0
+    rejects: valid
+    match:
+      message: 'did not find expected <document start>|did not find expected comment or line break|found unexpected end of stream|did not find expected whitespace or line break'
+      src: '(^\x{FEFF}?|[\r\n])(---[ \t]+)?([&!]\S*[ \t]+)*[|>]([-+]?[1-9]|[1-9][-+]?)'
+    kind: defect
+    because: >-
+      yaml.v3 counts a top-level block scalar's indentation indicator from column 0. The root node has n = -1
+      ([207] l-bare-document), and [170] sets the content indentation to n+m, so "--- |3" holds its content at
+      2 spaces, as the column 0 content of example 9.5 needs
   - id: anchor-name-chars
     rejects: valid
     match:

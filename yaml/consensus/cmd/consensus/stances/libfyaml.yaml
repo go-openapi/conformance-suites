@@ -16,8 +16,19 @@ stands:
       libfyaml keeps one anchor table for the whole stream on purpose, so an alias may name an anchor of an earlier
       document. The rule is decided at compose, past the parse fy-tool gives the verdict on
 
-# The Python binding returns numbers past the native ranges as their text.
 departures:
+  - id: indicator-counted-from-0
+    rejects: valid
+    match:
+      message: 'block scalar with wrongly indented'
+      src: '(^\x{FEFF}?|[\r\n])(---[ \t]+)?([&!]\S*[ \t]+)*[|>]([-+]?[1-9]|[1-9][-+]?)'
+    kind: defect
+    because: >-
+      fy-tool counts a top-level block scalar's indentation indicator from column 0. The root node has n = -1
+      ([207] l-bare-document), and [170] sets the content indentation to n+m, so "--- |3" holds its content at
+      2 spaces, as the column 0 content of example 9.5 needs
+
+# The Python binding returns numbers past the native ranges as their text.
   - id: wide-integer-as-text
     differs: value
     match: {tags: [representation/integer-wide]}
