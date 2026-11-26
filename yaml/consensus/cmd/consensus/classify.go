@@ -63,9 +63,10 @@ func rejects(a consensus.Answer, at stance.Stage) bool {
 // tagReasons walks a case's tags with a stance, as [stance.Table.Expect] does, and keeps what each finds.
 //
 // beyond holds the because of a stand on a tag decided past the parser's stage: the tag does not change the
-// expectation, but the stance file explains what the parser does with it.
+// expectation, but the stance file explains what the parser does with it. early holds a settled rejection decided
+// past the parser's stage: a parser that checks the rule before its stage rejects the document rightly.
 type tagReasons struct {
-	settled, declared, open, beyond *reason
+	settled, declared, open, beyond, early *reason
 }
 
 func readTags(rec record, ps parserStance) tagReasons {
@@ -83,6 +84,13 @@ func readTags(rec record, ps parserStance) tagReasons {
 		if stage, _ := t.Speaks.Of(tag); stage > t.At {
 			if because, ok := ps.StandBecause[tag]; ok && out.beyond == nil {
 				out.beyond = &reason{Key: "beyond " + name, Text: name + ": " + because}
+			}
+			if rule, settled := t.Requires.Of(tag); settled && rule.Then == stance.Reject && t.Stand(tag) != stance.Either &&
+				out.early == nil {
+				out.early = &reason{
+					Key:  "settled early " + name,
+					Text: name + ": " + rule.Because + ". The parser checks this " + stage.String() + " rule at " + t.At.String(),
+				}
 			}
 
 			continue
@@ -156,6 +164,9 @@ func classifyVerdict(rec record, a consensus.Answer, ps parserStance) (string, *
 	case rec.WellFormed:
 		if tags.settled != nil {
 			return statusSettled, tags.settled
+		}
+		if tags.early != nil {
+			return statusSettled, tags.early
 		}
 		if tags.declared != nil {
 			return statusDeclared, tags.declared

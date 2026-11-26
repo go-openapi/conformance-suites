@@ -153,6 +153,7 @@ func TestClassifyVerdictSplitsByReason(t *testing.T) {
 			{Tag: "encoding/bom", Stage: "parse"},
 			{Tag: "key/not-a-scalar", Stage: "construct"},
 			{Tag: "anchor/alias-across-documents", Stage: "construct", Settled: "reject", Because: "3.2.2.2"},
+			{Tag: "directive/yaml-repeated", Stage: "construct", Settled: "reject", Because: "6.8.1"},
 		}},
 		Sources: []sourceInfo{{ID: "p"}},
 	}
@@ -205,6 +206,7 @@ departures:
 		{"a declined rule, accepted", valid("key/duplicate"), accept, statusOK},
 		{"a tag past the stage", valid("key/not-a-scalar"), byParser(""), statusDiff},
 		{"a stand past the stage does not explain a rejection", valid("anchor/alias-across-documents"), byParser(""), statusDiff},
+		{"a settled rule past the stage, checked early", valid("directive/yaml-repeated"), byParser(""), statusSettled},
 		{"a refusal past the stage counts as accepting", valid(), byLoader, statusOK},
 		{"a refusal past the claim", record{WellFormed: true, Src: []byte("a")}, byComposer, statusUnscored},
 		{"a departure", valid(), byParser("could not find merge key"), statusExplained},
