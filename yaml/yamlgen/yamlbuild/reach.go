@@ -24,9 +24,9 @@ import "github.com/go-openapi/conformance-suites/stance"
 //
 // Each names something yamlgen's emitter has no way to write. Three are
 // presentation it does not offer -- an explicit key, a version directive, a
-// keep chomping indicator on a root scalar -- and one is a document that has to
-// be *invalid* in a particular way, which a generator of valid documents will
-// never draw.
+// keep chomping indicator on a root scalar -- and two are documents that have
+// to be *invalid* in a particular way, which a generator of valid documents
+// will never draw.
 //
 // The first three could become Style axes, and would be better as Style axes:
 // an axis crosses with every other axis, where a fixture is one document. That
@@ -97,6 +97,18 @@ var reachShapes = []stance.Shape{
 		// is what the corpus groups on.
 		Name: "a flow pair opened by a question mark and a break",
 		Src:  []byte("[?]: b\n"),
+	},
+	{
+		// Enters no bucket the rest do not, and is kept for the verdict: a
+		// lone "?" against "}" is neither an explicit key ([142] wants a
+		// separation after it) nor a plain scalar ([126] wants an
+		// ns-plain-safe character after it), so the grammar refuses it, where
+		// "{? }" is the valid empty entry. Without it no case writes a lone
+		// "?" against a flow indicator outside a key: libfyaml reads
+		// {"?": ""}, go-openapi/go-yaml {"?": null} and go.yaml.in/yaml/v3
+		// accepts it, where the reference parser refuses it.
+		Name: "an explicit key indicator against a closing brace",
+		Src:  []byte("{?}\n"),
 	},
 }
 
