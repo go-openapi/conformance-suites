@@ -39,3 +39,24 @@ departures:
       src: '(?m)^%YAML(?:[ \t]*$|[^ \t]|[ \t]+(?:[^0-9 \t]|[0-9]+(?:$|[^.0-9]|\.(?:$|[^0-9]|[0-9]+[^0-9 \t\r\n#]))))'
     kind: leniency
     because: the parser does not check the version number of a %YAML directive
+
+# The reference parser shares a grammar lineage with YAMLStar's, and rejects the same documents for the same causes.
+# Its adapter keeps no message, so these departures match the source alone.
+  - id: lone-cr-break
+    rejects: valid
+    match:
+      src: '\r[\r#]|^\x{FEFF}?[ \t]*#[^\r\n]*\r(?:[^\n]|$)|(^|[ \t\r\n])[&!][^ \t\r\n]*([ \t]+[&!][^ \t\r\n]*)?([ \t]+#[^\r\n]*)?[ \t]*\r(?:[^\n]|$)|(^|[\r\n])\.\.\.[ \t]*(#[^\r\n]*)?\r(?:[^\n]|$)'
+    kind: defect
+    because: >-
+      the parser takes a lone CR as a line break between most lines, but not before an empty line, before a comment
+      at column 0, after a comment that opens the stream, after node properties that end a line, or around a "..."
+      marker next to a comment or a flow node: "x\r\r", "x\r# c", "!foo\r- a" and "a:\r  &x\r  b: 1" reject the
+      document, where [28] b-break takes a lone CR
+  - id: bom-before-content
+    rejects: valid
+    match:
+      src: '^\x{FEFF}([^-% \t\r\n]|-[^-]|--[^-])'
+    kind: defect
+    because: >-
+      the parser takes a byte order mark before "---", a directive, a space or a break, and rejects one right before
+      content or a comment, where [202] l-document-prefix takes it: "\ufeffa: 1" rejects the document
