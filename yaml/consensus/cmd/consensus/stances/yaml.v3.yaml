@@ -3,9 +3,162 @@ parser: yaml.v3
 at: construct
 because: yaml.NewDecoder decodes each document into any, and the runner writes the value as JSON
 
+stands:
+  directive/yaml-minor-version:
+    stand: refuses
+    because: yaml.v3 accepts a %YAML directive for version 1.1 only, and rejects any other minor version
+  anchor/cyclic-meaning:
+    stand: refuses
+    because: yaml.v3 rejects an alias inside the node its anchor names, with "anchor 'x' value contains itself"
+  merge/into-non-mapping:
+    stand: refuses
+    because: yaml.v3 rejects a merge key whose value is not a mapping or a sequence of mappings
+  merge/key-alone: refuses
+  tag/bool-not-a-boolean: refuses
+  tag/int-not-an-integer: refuses
+  tag/float-not-a-number: refuses
+  tag/null-not-null: refuses
+  tag/timestamp-not-a-date: refuses
+  tag/binary-not-base64: refuses
+
+# yaml.v3's scanner and parser are a port of libyaml, a YAML 1.1 parser, and keep several of its limits.
+departures:
+  - id: yaml-directive-1.1-only
+    rejects: valid
+    match:
+      message: 'found incompatible YAML document'
+      src: '(^\x{FEFF}?|[\r\n])%YAML[ \t]+1\.2'
+    kind: defect
+    because: yaml.v3 accepts a %YAML directive for version 1.1 only, so "%YAML 1.2" rejects the document
+  - id: reserved-directive-refused
+    rejects: valid
+    match:
+      message: 'found unknown directive name|found unexpected non-alphabetical character|could not find expected directive name'
+      src: '(^\x{FEFF}?|[\r\n])%(?:[^YT]|Y(?:[^A]|A(?:[^M]|M(?:[^L]|L[^ \t])))|T(?:[^A]|A(?:[^G]|G[^ \t])))'
+    kind: defect
+    because: >-
+      yaml.v3 rejects a directive other than %YAML and %TAG, and a directive name with a character other than a
+      letter, a digit, '-' or '_', where 6.8 ignores a reserved directive with a warning
+  - id: bare-document-after-end
+    rejects: valid
+    match:
+      message: 'did not find expected <document start>'
+      src: '(^\x{FEFF}?|[\r\n])\.\.\.'
+    kind: defect
+    because: >-
+      yaml.v3 requires a "---" before every document after the first, so a bare document after a "..." end marker
+      rejects the stream
+  - id: block-scalar-at-column-0
+    rejects: valid
+    match:
+      message: 'did not find expected <document start>'
+      src: '[|>][-+]?[ \t\r\n#]'
+    kind: defect
+    because: >-
+      a top-level block scalar without an indentation indicator may hold its content at column 0, as in spec
+      example 9.5; yaml.v3 ends the scalar empty instead, then rejects the content as a second document
+  - id: anchor-name-chars
+    rejects: valid
+    match:
+      message: 'did not find expected alphabetic or numeric character|found character that cannot start any token'
+      src: '(^\x{FEFF}?|[\s\[{,])[&*][A-Za-z0-9_-]*[^A-Za-z0-9_\-\s,\[\]{}]'
+    kind: defect
+    because: >-
+      yaml.v3 reads an anchor or alias name of letters, digits, '-' and '_' only, where ns-anchor-char takes any
+      non-space character but the flow indicators: "&a`" rejects the document
+  - id: tab-as-separation
+    rejects: valid
+    match:
+      message: 'found character that cannot start any token'
+      src: '(^\x{FEFF}?|[\r\n])[ ]*\t|[-?:][ \t]*\t'
+    kind: defect
+    because: >-
+      yaml.v3 rejects a tab after a block indicator or before the node on a line, where s-separate-in-line takes
+      a tab: "-\tfalse" and "?\ta" reject the document
+  - id: empty-implicit-key
+    rejects: valid
+    match:
+      message: 'did not find expected key'
+      src: '(^\x{FEFF}?|[\r\n])[ ]*(- +)?:([ \t\r\n]|$)'
+    kind: defect
+    because: >-
+      yaml.v3 rejects a block mapping entry that starts with ':', which l-block-map-implicit-entry reads as an
+      empty key: "a: 1\n: 2" rejects the document
+  - id: tab-opens-block-content
+    rejects: valid
+    match:
+      message: 'found a tab character where an indentation space is expected'
+    kind: defect
+    because: >-
+      yaml.v3 rejects a tab at the start of a block scalar's content, where the indentation ends and the tab is
+      content: "|\n \tx" rejects the document
+  - id: timestamp-space-and-zone
+    rejects: valid
+    match:
+      message: 'cannot decode !!str `[0-9]{4}-[0-9]{1,2}-[0-9]{1,2}[ \t]+[0-9]{1,2}:[0-9]{2}:[0-9]{2}(\.[0-9]*)?[ \t]*(Z|[-+][0-9]{1,2}(:[0-9]{2})?)` as a !!timestamp'
+    kind: defect
+    because: >-
+      yaml.v3 reads a timestamp with a space before the time only without a time zone, so a !!timestamp tag on
+      "2001-12-14 21:59:43.10 -5" or "1913-07-08 02:01:00.19Z", both of the 1.1 timestamp type, rejects the document
+  - id: int-leading-zero
+    rejects: valid
+    match:
+      message: 'cannot decode !!float `[-+]?0[0-9]+` as a !!int'
+    kind: defect
+    because: >-
+      yaml.v3 reads "09" and "099" as octal, fails, and resolves them to a float, so a !!int tag on them rejects
+      the document; the core schema reads them as 9 and 99
+  - id: int-past-int64
+    rejects: valid
+    match:
+      message: 'cannot decode !!float `[-+]?[1-9][0-9]{18,}` as a !!int'
+    kind: position
+    because: >-
+      an integer past int64 and uint64 resolves to a float, so a !!int tag on it rejects the document:
+      !!int 709020151362207020812
+  - id: float-past-float64-tagged
+    rejects: valid
+    match:
+      message: 'cannot decode !!str `[-+]?[0-9]*\.?[0-9]+[eE][-+]?[0-9]+` as a !!float'
+    kind: position
+    because: >-
+      a float past a float64's range does not resolve to a float, so a !!float tag on it rejects the document:
+      !!float 2.8e+332
+  - id: collection-key
+    rejects: valid
+    match:
+      message: 'invalid map key'
+    kind: position
+    because: >-
+      yaml.v3 decodes a mapping into a Go map, and a Go map cannot take a sequence or a mapping as a key:
+      "? [1, 2]" rejects the document
+  - id: tag-shorthand-unchecked
+    accepts: invalid
+    match:
+      src: '(^\x{FEFF}?|[\s\[{,])!(?:[A-Za-z0-9-]*!)?[^\s!\[\]{},]*[!\[\]{},][^\s,\]}]'
+    kind: leniency
+    because: >-
+      yaml.v3 reads a tag shorthand up to the next space, and takes characters ns-tag-char excludes:
+      "!!!int" and "!!bina[ry" are accepted
+  - id: bom-not-first
+    accepts: invalid
+    match:
+      src: '(?s)^.+\x{FEFF}'
+    kind: leniency
+    because: >-
+      yaml.v3 reads a byte order mark after the first byte as content, where the grammar allows none:
+      "  \ufefftrue" decodes as the string "\ufefftrue"
+  - id: comment-without-space
+    accepts: invalid
+    match:
+      src: '["''\]}]#'
+    kind: leniency
+    because: >-
+      yaml.v3 takes a comment right after a closing quote or bracket, where s-b-comment needs a space before
+      the '#': "{}# c1" is accepted
+
 # yaml.v3 decodes numbers into Go's native types, so a number past their range changes. YAML leaves the range and
 # accuracy to the implementation (10.2.1.4), and the corpus states the exact value.
-departures:
   - id: wide-integer-as-float64
     differs: value
     match: {tags: [representation/integer-wide]}
@@ -20,3 +173,62 @@ departures:
     because: >-
       a float too small for a float64 decodes as 0, and one too large is left a string,
       because yaml.v3 does not resolve it to a float: 9.999e+442 comes back as "9.999e+442"
+  - id: float-as-float64
+    differs: value
+    match: {tags: [representation/float-inexact]}
+    kind: position
+    because: >-
+      a float with more digits than a float64 holds comes back rounded:
+      1.0146890218152647300502110008166221703622 comes back as 1.0146890218152647
+
+# yaml.v3 resolves plain scalars and tags with parts of the YAML 1.1 types, where the corpus states the value under
+# the 1.2 core schema.
+  - id: merge-key-applied
+    differs: value
+    match: {src: '<<'}
+    kind: position
+    because: >-
+      yaml.v3 applies the 1.1 merge key: it merges the mapping under "<<" into the mapping that holds it, where the
+      core schema keeps "<<" as a plain key
+  - id: ordered-map-as-sequence
+    differs: value
+    match: {tags: [representation/ordered-map]}
+    kind: position
+    because: yaml.v3 has no ordered map, and decodes !!omap as a sequence of one-pair mappings
+  - id: binary-as-bytes
+    differs: value
+    match: {tags: [representation/binary]}
+    kind: position
+    because: >-
+      yaml.v3 decodes !!binary into its bytes, which the runner writes as a string, where the corpus states the
+      base64 text: !!binary "Iwc=" comes back as "#\u0007"
+  - id: int-octal-legacy
+    differs: value
+    match: {src: '(^\x{FEFF}?|[\s:\[{,])[-+]?0[0-7]+([\s,\]}]|$)'}
+    kind: position
+    because: yaml.v3 reads an integer with a leading 0 as octal, as YAML 1.1 does, so 077 comes back as 63
+  - id: int-underscores
+    differs: value
+    match: {tags: [schema/int-underscores]}
+    kind: position
+    because: yaml.v3 reads 1_000 as the integer 1000, as YAML 1.1 does, where the core schema keeps it a string
+  - id: int-binary
+    differs: value
+    match: {tags: [schema/int-binary]}
+    kind: position
+    because: yaml.v3 reads 0b1010 as the integer 10, as YAML 1.1 does, where the core schema keeps it a string
+  - id: timestamp-untagged
+    differs: value
+    match: {tags: [schema/timestamp-legacy]}
+    kind: position
+    because: >-
+      yaml.v3 resolves a plain 2001-12-14 to a timestamp, as YAML 1.1 does, where the core schema keeps it a string
+
+# The runner writes yaml.v3's value with encoding/json.
+  - id: json-cannot-write
+    differs: value
+    match: {value: '^\n*$'}
+    kind: position
+    because: >-
+      yaml.v3 decodes a mapping with a key that is not a string into a map[any]any, which encoding/json cannot
+      write, so the runner has no value for the document: "-0.0: true"
