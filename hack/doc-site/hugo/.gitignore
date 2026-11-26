@@ -1,3 +1,6 @@
 public
 *.lock
 conformance-suites.yaml
+# Written by ../consensus-report.sh from a results file.
+consensus/
+data/consensus.json

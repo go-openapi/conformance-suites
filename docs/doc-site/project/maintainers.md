@@ -27,3 +27,22 @@ This page is an outline. The structure is up for review; the prose is not writte
 - Regenerating the compact corpus, and the regenerate-and-diff test
 - Updating `metrics.yaml`
 - Releasing: `bump-release.yml` or a signed semver tag; corpus assets once released
+
+## The consensus report
+
+The consensus image (`yaml/consensus/docker/Dockerfile`) pins every parser, go-openapi/go-yaml included. Bump the
+go-yaml pin by hand, together with the stance files it needs. Each release runs the image on the compact corpus and
+attaches the results file, `consensus-results.jsonl.gz`, to the release. The doc site renders the
+[consensus report](../../reference/consensus/) from the results file of the latest release.
+
+To produce a report yourself, build the image and run it on a corpus file, as the Dockerfile's header describes.
+Then render it into this site, under `/consensus/`, or into any directory:
+
+```sh
+hack/doc-site/consensus-report.sh results.jsonl.gz
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/work" conformance-consensus \
+  report -o /work/report /work/results.jsonl
+```
+
+The script also writes the results header to `hack/doc-site/hugo/data/consensus.json`, which the reference page
+reads. Both outputs are gitignored.

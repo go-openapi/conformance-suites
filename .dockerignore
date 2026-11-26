@@ -7,3 +7,5 @@
 !yaml/corpus/testdata/yaml-compact.jsonl.gz
 hack/doc-site/hugo/public
 hack/doc-site/hugo/themes/hugo-relearn
+hack/doc-site/hugo/consensus
+hack/doc-site/hugo/data/consensus.json

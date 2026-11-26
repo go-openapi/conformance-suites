@@ -63,6 +63,12 @@ module:
     - source: themes/goyaml-static
       target: static
 
+    # The consensus report and its header, written by ../consensus-report.sh; absent until it runs
+    - source: consensus
+      target: static/consensus
+    - source: data
+      target: data
+
 # Relearn theme parameters
 params:
   # Edit links - point at the hand-written content
@@ -138,6 +144,11 @@ params:
 # Menu configuration
 menu:
   shortcuts:
+    - name: "Consensus report"
+      identifier: consensus
+      pageRef: /reference/consensus
+      weight: 5
+
     - name: "GitHub"
       identifier: github
       url: "https://github.com/go-openapi/conformance-suites"

@@ -1,0 +1,21 @@
+{{- /*
+  consensus: renders the corpus and the parsers of the published consensus report and a link to it.
+  Usage: {{< consensus >}}
+  It reads data/consensus.json, which hack/doc-site/consensus-report.sh writes from the results header.
+  Without that file it renders a notice that no report is published yet.
+*/ -}}
+{{- with site.Data.consensus -}}
+{{- $report := "consensus/index.html" | relURL -}}
+<p><a href="{{ $report }}"><strong>Open the consensus report</strong></a></p>
+<p>Corpus: tier {{ .corpus.tier }}, {{ .corpus.cases | lang.FormatNumber 0 }} cases, grammar {{ .corpus.grammar }}.</p>
+<table>
+<thead><tr><th>Parser</th><th>Implementation</th><th>Version</th></tr></thead>
+<tbody>
+{{- range .sources }}
+<tr><td><code>{{ .id }}</code></td><td>{{ .what }}</td><td>{{ .version }}</td></tr>
+{{- end }}
+</tbody>
+</table>
+{{- else -}}
+<blockquote><p>No report is published yet. The site shows the report of the latest release that carries a results file.</p></blockquote>
+{{- end -}}
