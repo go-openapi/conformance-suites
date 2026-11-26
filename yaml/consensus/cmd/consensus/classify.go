@@ -25,6 +25,13 @@ const (
 	statusValExplained = "different, explained"
 )
 
+// The value statuses of a document the parser rejects, split by the verdict's reason. A rejection that a settled
+// rule, a declared stand, a departure or the stage explains takes the verdict's own status.
+const (
+	statusValRefTagged = "rejected, tagged"
+	statusValRefused   = "rejected"
+)
+
 // reason is why a source's verdict on a case falls in the column it does.
 type reason struct {
 	// Key groups the cases one reason explains: "settled anchor/alias-undefined", "departure merge-key-ruling".
@@ -444,19 +451,21 @@ func verdictGroup(a consensus.Answer, at stance.Stage) (group, verdict string) {
 	}
 }
 
-// refusalReason explains why a parser builds no value for a valid document it rejects: the reason of its verdict,
-// under the verdict's column, so the value table's "refused" cell shows the same reasons as the verdict table.
-func refusalReason(a consensus.Answer, at stance.Stage, verdict string, why *reason) *reason {
-	if verdict == statusOK {
+// refusalReason returns the value status and the reason of a valid document the parser rejects, taken from its
+// verdict, so the value table splits its rejections by the same reasons as the verdict table.
+func refusalReason(a consensus.Answer, at stance.Stage, verdict string, why *reason) (string, *reason) {
+	switch verdict {
+	case statusOK:
 		// A refusal past the stance's stage: the verdict table counts an acceptance.
-		return &reason{
+		return statusUnscored, &reason{
 			Key:  "past the stage " + string(a.RefusedBy),
 			Text: "the " + string(a.RefusedBy) + " rejects the document past " + at.String() + ", where the verdict is given",
 		}
+	case statusSettled, statusDeclared, statusUnscored, statusExplained:
+		return verdict, why
+	case statusDiffTag:
+		return statusValRefTagged, why
+	default:
+		return statusValRefused, &reasonUnexplained
 	}
-	if why == nil {
-		why = &reasonUnexplained
-	}
-
-	return &reason{Key: "verdict " + verdict + " " + why.Key, Text: statusLabel(verdict) + ": " + why.Text, Kind: why.Kind}
 }

@@ -210,9 +210,23 @@ func questionsFor(st corpusStats, sources []sourceInfo) []question {
 						"specification leaves open."},
 					{statusDiff, "different", "The parser builds another value, and nothing explains it. " +
 						"Each of these is a defect in the parser or in the corpus."},
-					{statusRefused, "rejected", "The parser rejects the document, so it builds no value. " +
-						"The verdict table counts these too."},
 					{statusNoValue, "no value", "The parser accepts the document and returns no value for it."},
+				}},
+				{Label: "rejected, so no value: the verdict table counts these too", Columns: []column{
+					{statusSettled, "settled", "The parser rejects the document, and a rule the specification " +
+						"settles beyond the grammar forbids it."},
+					{statusDeclared, "as declared", "The parser rejects a document carrying a tag " +
+						"its stance file declares it refuses."},
+					{statusUnscored, "after the parse", "The parser's composer or loader rejects the document, " +
+						"past the stage the verdict is scored at."},
+					{statusExplained, "explained", "The parser rejects the document, " +
+						"and a departure in its stance file explains why."},
+					{statusValRefTagged, "tagged", "The parser rejects a document carrying a tag " +
+						"its stance file says nothing about."},
+					{statusValRefused, "unexplained", "The parser rejects the document, and nothing explains it. " +
+						"Each of these is a defect in the parser or in the corpus."},
+				}},
+				{Columns: []column{
 					{statusError, "error", "The parser crashed, timed out, or wrote output the runner cannot read."},
 				}},
 			},
@@ -358,8 +372,7 @@ func judge(rec record, sources []sourceInfo, stances []parserStance) judged {
 		case !rec.WellFormed || rec.Meaning == nil:
 			j.Status["value"][i] = statusNotScored
 		case a.Verdict != consensus.Accept:
-			j.Status["value"][i] = statusRefused
-			j.ValueWhy[i] = refusalReason(a, ps.Table.At, j.Status["verdict"][i], j.Why[i])
+			j.Status["value"][i], j.ValueWhy[i] = refusalReason(a, ps.Table.At, j.Status["verdict"][i], j.Why[i])
 		case a.JSON == nil:
 			j.Status["value"][i] = statusNoValue
 		default:
@@ -565,7 +578,7 @@ func buildGrid(title, kind string, cases []judged, n int, keys func(judged) []st
 
 // quietValues are the value and events statuses that make no case worth a page.
 var quietValues = []string{
-	statusRTSame, statusRTCyclic, statusRefused, statusNoValue, statusNotScored, statusNoAnswer,
+	statusRTSame, statusRTCyclic, statusRefused, statusValRefTagged, statusValRefused, statusNoValue, statusNotScored, statusNoAnswer,
 	statusAgree, statusOnly, statusMajority, statusMinority, statusNoMajor, statusNoEvents,
 }
 

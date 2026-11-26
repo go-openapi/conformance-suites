@@ -79,7 +79,7 @@ func TestJudgeScoresValuesOnlyWhereTheCorpusStatesOne(t *testing.T) {
 			record{WellFormed: true, Meaning: &suite.Meaning{JSON: json.RawMessage(`2`)}, Answers: accept},
 			statusDiff,
 		},
-		{"a rejection", record{WellFormed: true, Meaning: stated, Answers: refuse}, statusRefused},
+		{"a rejection", record{WellFormed: true, Meaning: stated, Answers: refuse}, statusValRefused},
 		{"no stated value", record{WellFormed: true, Answers: accept}, statusNotScored},
 		{"an invalid document", record{Answers: refuse}, statusNotScored},
 	} {
@@ -313,20 +313,26 @@ func TestGroupReasonsAddsUpToTheSummaryCell(t *testing.T) {
 
 func TestRefusalReasonCarriesTheVerdictsReason(t *testing.T) {
 	declared := &reason{Key: "declared anchor/cyclic-meaning", Text: "anchor/cyclic-meaning: on purpose"}
+	open := &reason{Key: "open encoding/bom", Text: "encoding/bom: not ruled on"}
 	byLoader := consensus.Answer{Verdict: consensus.Refuse, RefusedBy: consensus.Loader}
 
 	for _, tc := range []struct {
 		name, verdict string
 		why           *reason
-		want          string
+		status, text  string
 	}{
-		{"a declared refusal", statusDeclared, declared, "rejected, as declared: anchor/cyclic-meaning: on purpose"},
-		{"an unexplained refusal", statusDiff, nil, "rejected: " + reasonUnexplained.Text},
-		{"a refusal past the stage", statusOK, nil, "the loader rejects the document past parse, where the verdict is given"},
+		{"a declared refusal", statusDeclared, declared, statusDeclared, declared.Text},
+		{"a refusal on an open tag", statusDiffTag, open, statusValRefTagged, open.Text},
+		{"an unexplained refusal", statusDiff, nil, statusValRefused, reasonUnexplained.Text},
+		{
+			"a refusal past the stage", statusOK, nil, statusUnscored,
+			"the loader rejects the document past parse, where the verdict is given",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := refusalReason(byLoader, stance.Parse, tc.verdict, tc.why); got.Text != tc.want {
-				t.Errorf("refusalReason = %q, want %q", got.Text, tc.want)
+			status, why := refusalReason(byLoader, stance.Parse, tc.verdict, tc.why)
+			if status != tc.status || why.Text != tc.text {
+				t.Errorf("refusalReason = %q, %q, want %q, %q", status, why.Text, tc.status, tc.text)
 			}
 		})
 	}
