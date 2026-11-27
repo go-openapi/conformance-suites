@@ -14,26 +14,39 @@
 
 **Conformance test suites for JSON and YAML parsers, generated from the published grammars.**
 
-<!--
 ## Announcements
--->
+
+* **2026-11-2 7** :
+  * v0.0.4 landed, first YAML test corpus released (compact)
 
 ## Status
 
-Early days: the API may still change. No corpus is released yet.
+Early days: the API is still in flux. Documentation and code are still being honed...
 
-The YAML 1.2 and JSON (RFC 8259) suites ship today, each with an oracle, a suite generator and a compact corpus
-embedded in Go. Full-size corpora will ship as release assets.
+A first corpus is released (that's the compact YAML compact, with ~ 28 000 documents).
+Other will follow suit!
+
+Test suites for YAML 1.2 and JSON (RFC 8259) ship today.
+Each comes with an oracle, a suite generator and a compact corpus embedded in Go.
+
+Full-size corpora ship as release assets.
 
 ## Motivation
 
-Hand-written test suites such as the [YAML Test Suite][yaml-test-suite] are precise but small. We test parsers on
-more than a hundred thousand documents, most of them broken in ways nobody would write by hand.
+Hand-written test suites such as the [YAML Test Suite][yaml-test-suite] are precise but small.
 
-Each document needs a verdict, and no existing parser can supply it without scoring every other parser against its
-own bugs. So this project compiles the grammar each specification publishes into a recognizer, and uses it as the
-oracle. Where a specification leaves a choice to the implementation, a case carries a tag, and you declare your
-parser's position on each tag.
+We want to test parsers on thousands of documents, most of them broken in ways nobody would write by hand.
+We also want tools to test our YAML and JSON parsers using property-based and fuzz tests.
+
+For that we need corpus generators, based on grammars and that are smart enough to capture extra-grammar rules.
+
+Each document produced needs a verdict, and a classification to compare and explain the outcome of different parsers,
+which may come with different implementation-specific stances.
+
+This project compiles the grammar each specification publishes into a recognizer, and uses it as the oracle.
+
+Where a specification leaves a choice to the implementation, a case carries a tag,
+and we may declare a parser's position on each tag.
 
 ## Documentation
 
@@ -49,17 +62,41 @@ go get github.com/go-openapi/conformance-suites
 Ask the oracles directly:
 
 ```go
+import (
+    jsoncorpus "github.com/go-openapi/conformance-suites/json"
+    yamlcorpus "github.com/go-openapi/conformance-suites/yaml"
+)
+
 ok := yamlcorpus.Stream([]byte("a: [1, 2]\n")).OK // YAML 1.2
 ok = jsoncorpus.Text([]byte(`{"a":1}`)).OK         // RFC 8259
 ```
 
-Read the embedded JSON corpus, then score your parser case by case with a `stance.Table`:
+Read an embedded corpus, then score your parser case by case with a `stance.Table`:
 
 ```go
-header, cases, err := jsoncorpus.CompactSuite()
+import yamlembed "github.com/go-openapi/conformance-suites/yaml/corpus" // a module of its own: 1.6 MB
+
+header, cases, err := jsoncorpus.CompactSuite() // in the root module
+header, cases, err = yamlembed.CompactSuite()
 ```
 
-A corpus is a gzipped JSON Lines file, so a parser written in any language can be scored against it.
+To go past the corpus, seed a Go fuzz target with it, or draw YAML documents for property tests with
+`yamlgen` and [rapid][rapid]: see [Fuzz and property tests][doc-fuzz].
+
+
+## Corpora
+
+A corpus is a gzipped JSON Lines file: a parser written in any language can be scored against it.
+
+## Consensus
+
+For YAML specifically, it is very difficult to compare parsers.
+
+We have taken inspiration from the work by `@perlpunk` there [`YAML test matrix`][yaml-test-matrix].
+and produce our own comparison of YAML parsers.
+
+[Our consensus][doc-consensus] report compares fewer parsers, and tries to provide a deeper insight on how their differ.
+We introduce our new YAML parser [`go-openapi/go-yaml`][openapi-go-yaml] to the bunch.
 
 ## Modules
 
@@ -68,7 +105,7 @@ A corpus is a gzipped JSON Lines file, so a parser written in any language can b
 | [root](./go.mod) | `suite`, `stance`, [`json`](./json) (`jsoncorpus`), [`yaml`](./yaml) (`yamlcorpus`) | the file format, positions and outcomes, the JSON suite, the YAML oracle |
 | [`yaml/yamlgen`](./yaml/yamlgen) | `yamlgen`, `yamlbuild` | the YAML generator and corpus builder |
 | [`yaml/corpus`](./yaml/corpus) | `yamlembed` | the compact YAML corpus, embedded |
-| [`yaml/consensus`](./yaml/consensus) | `goyaml`, `libfyaml`, `perlref` | adapters for other YAML implementations |
+| [`yaml/consensus`](./yaml/consensus) | `consensus`, `goopenapi`, `goyaml`, `libfyaml`, `perlref`, `yamlstar`, `cmd/consensus` | adapters for five YAML implementations, and the command that writes the [consensus report][doc-consensus] |
 | [`yaml/calibrate`](./yaml/calibrate) | tests only | checks the generator against go-openapi/go-yaml |
 
 The root module imports only the standard library. Only `yaml/consensus` and `yaml/calibrate` import a parser.
@@ -87,8 +124,11 @@ The root module imports only the standard library. Only `yaml/consensus` and `ya
   calibrate the JSON recognizer, and check that the generated JSON corpus holds every construct it holds.
 - [`yaml/yaml-grammar`][yaml-grammar], which publishes the YAML 1.2 productions as data. Our YAML
   recognizer is compiled from it.
+- The [YAML test matrix][yaml-test-matrix] by [`@perlpunk`][perlpunk] has been a valuable source of inspiration for our work.
 
+<!--
 ## FAQ
+-->
 
 ## Change log
 
@@ -98,6 +138,10 @@ See <https://github.com/go-openapi/conformance-suites/releases>
 
 - [YAML 1.2.2 specification][yaml-spec]
 - [RFC 8259: The JavaScript Object Notation (JSON) Data Interchange Format][rfc8259]
+
+Academic work on the topic of grammar-based test generation
+
+Prior art
 
 ## Licensing
 
@@ -159,6 +203,8 @@ Maintainers can cut a new release by either:
 [doc-format]: https://go-openapi.github.io/conformance-suites/reference/file-format/
 [doc-tags]: https://go-openapi.github.io/conformance-suites/concepts/tags-and-stances/
 [doc-score]: https://go-openapi.github.io/conformance-suites/getting-started/score-a-parser/
+[doc-fuzz]: https://go-openapi.github.io/conformance-suites/getting-started/fuzz-and-properties/
+[doc-consensus]: https://go-openapi.github.io/conformance-suites/consensus/index.html
 <!-- Reference material -->
 [yaml-spec]: https://yaml.org/spec/1.2.2/
 [rfc8259]: https://www.rfc-editor.org/rfc/rfc8259
@@ -167,3 +213,7 @@ Maintainers can cut a new release by either:
 [json-test-suite]: https://github.com/nst/JSONTestSuite
 <!-- Credits & mentions -->
 [ingydotnet]: https://github.com/ingydotnet
+[perlpunk]: https://github.com/perlpunk
+[yaml-test-matrix]: https://github.com/perlpunk/yaml-test-matrix
+[openapi-go-yaml]: https://github.com/go-openapi/go-yaml
+[rapid]: https://github.com/flyingmutant/rapid
