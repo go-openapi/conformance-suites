@@ -203,28 +203,60 @@ func CommentsIn(src string) []string {
 
 var commentMarker = regexp.MustCompile(`#\s*c\d+`)
 
-// HoldsACollectionKey reports whether a mapping's key is a collection anywhere
-// in v.
+// WritesACollectionKey reports whether v holds, anywhere, a mapping key that
+// [Emit] writes as a block collection.
+//
+// Such a key takes the "?" form whatever the style asks. An alias to a
+// collection and an empty collection write on one line, so they do not count:
+// use [HoldsACollectionKey] to ask what the key means.
+func WritesACollectionKey(v Value) bool {
+	return anyKey(v, isCollection)
+}
+
+// HoldsACollectionKey reports whether v holds, anywhere, a mapping key that
+// reads as a collection: a sequence or a mapping, empty or not, behind any
+// anchor, tag or alias.
+//
+// A parser that refuses collection keys refuses every document of v.
 func HoldsACollectionKey(v Value) bool {
+	return anyKey(v, readsAsCollection)
+}
+
+// anyKey reports whether is holds for a mapping key anywhere in v, aliased
+// nodes included.
+func anyKey(v Value, is func(Value) bool) bool {
 	switch n := v.(type) {
 	case Map:
 		for _, p := range n.Pairs {
-			if isCollection(p.Key) {
-				return true
-			}
-
-			if HoldsACollectionKey(p.Key) || HoldsACollectionKey(p.Val) {
+			if is(p.Key) || anyKey(p.Key, is) || anyKey(p.Val, is) {
 				return true
 			}
 		}
 	case Seq:
-		return slices.ContainsFunc(n.Items, HoldsACollectionKey)
+		return slices.ContainsFunc(n.Items, func(item Value) bool { return anyKey(item, is) })
 	case Anchored:
-		return HoldsACollectionKey(n.V)
+		return anyKey(n.V, is)
 	case Alias:
-		return HoldsACollectionKey(n.V)
+		return anyKey(n.V, is)
 	case Tagged:
-		return HoldsACollectionKey(n.V)
+		return anyKey(n.V, is)
+	}
+
+	return false
+}
+
+// readsAsCollection reports whether v reads as a sequence or a mapping, looking
+// through anchors, tags and aliases.
+func readsAsCollection(v Value) bool {
+	switch n := v.(type) {
+	case Seq, Map:
+		return true
+	case Anchored:
+		return readsAsCollection(n.V)
+	case Tagged:
+		return readsAsCollection(n.V)
+	case Alias:
+		return readsAsCollection(n.V)
 	}
 
 	return false
@@ -313,5 +345,5 @@ func WritesACommentAboveABlankLine(_ Value, st Style) bool {
 // forced. Each was found the same way -- a property failing on a document whose
 // style label carried no "?key" at all.
 func WritesAnExplicitKey(v Value, st Style) bool {
-	return st.ExplicitKeys || HoldsACollectionKey(v)
+	return st.ExplicitKeys || WritesACollectionKey(v)
 }
