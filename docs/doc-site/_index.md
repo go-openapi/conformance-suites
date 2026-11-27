@@ -5,20 +5,27 @@ description: Conformance test suites for JSON and YAML parsers, generated from t
 weight: 1
 ---
 
-Conformance test suites for JSON and YAML parsers. Each document is generated, and its verdict comes from
-the grammar the specification publishes, not from another parser.
+Conformance test suites for JSON and YAML parsers.
+
+This library generates test suites.
+
+Each document is generated, and its verdict comes from the grammar published by its specification.
 
 ### Status
 
 {{% button href="https://github.com/go-openapi/conformance-suites/fork" hint="fork me on github" style=primary icon=code-fork %}}Fork me{{% /button %}}
-Early days. The file format and the API may still change.
 
-The JSON suite is usable today. The YAML suite is moving here from [go-openapi/go-yaml][go-yaml].
+Early days: the API is still in flux. Documentation and code are still being honed...
 
 ### Getting started
 
-Each suite is published as a gzipped JSON Lines file. You can read it from any language with a JSON reader
-and a base64 decoder: you need neither Go nor this module. See [Read a corpus](./getting-started/read-a-corpus/).
+Each suite is published as a gzipped JSON Lines file.
+
+You can read it from any language with a JSON reader and a base64 decoder.
+
+You don't need Go or this library to work with the suite. See [Read a corpus](./getting-started/read-a-corpus/).
+
+**Go**
 
 To use the oracles, the generators, or the embedded corpus from Go:
 
