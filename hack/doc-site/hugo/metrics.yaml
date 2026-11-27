@@ -29,3 +29,25 @@ params:
         json_jts_impl: 35           # i_ files, recorded and never asserted
         json_jts_impl_accepted: 21
         json_constructs: 40         # jsoncorpus.Constructs
+
+        # YAML suite. Measured 2026-11-27 on the v0.0.4 compact corpus (yamlembed.CompactSuite, generator
+        # yamlcorpus/48), with a throwaway test; the calibration with go test -v ./yaml; the reach with
+        # TestTheCorpusReachesMostOfTheGrammar.
+        yaml_patches: 13            # len(yamlPatches()) in yaml/yaml.go
+        yaml_tags: 66               # len(header.vocabulary)
+        yaml_per_signature: 16      # yamlbuild.Compact().PerSignature
+        yaml_compact_cases: 28279
+        yaml_compact_refused: 8760
+        yaml_compact_meanings: 2864         # cases with a meaning
+        yaml_compact_meanings_split: 334    # cases with one meaning per reading
+        yaml_compact_cyclic: 4
+        yaml_buckets: 605           # production-by-context buckets reachable from l-yaml-stream in block-in
+        yaml_yts_accept: 299        # YAML Test Suite fixtures that must be accepted
+        yaml_yts_reject: 94
+        yaml_yts_silent: 9          # fixtures with no expectation
+        yaml_yts_departures: 2
+
+        # Extended tiers (x5), measured 2026-11-26 on master 62d0816 with the Build literals the coverage page shows.
+        json_extended_cases: 11982
+        yaml_extended_cases: 112578
+        yaml_extended_size: "6.8 MB"

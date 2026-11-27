@@ -119,3 +119,78 @@ way, as UTF-16 or with replacement characters.
 So for a parser that `Accepts` the tag explaining the bytes, usually `encoding/not-utf8`, an opaque case is
 `Undecided`. A parser that `Refuses` the tag still expects a rejection: refusing does not depend on what the
 bytes denote.
+
+## Two examples
+
+Each example takes one case from a compact corpus and runs `Table.Expect` on it with several tables. The outcomes
+and reasons are copied from a run; each reason drops the table name it starts with.
+
+### JSON: a lone surrogate
+
+The case `shape/value/lone high surrogate`, from the JSON compact corpus:
+
+```json
+{
+  "name": "shape/value/lone high surrogate",
+  "src": "WyJcdUQ4MzQiXQ==",
+  "wellFormed": true,
+  "tags": ["string/lone-surrogate"],
+  "verdictAt": "construct"
+}
+```
+
+`src` is `["\uD834"]`: an array holding a string whose only escape is the first half of a surrogate pair. The
+grammar accepts it, because RFC 8259's grammar allows any `\u` escape. The RFC calls the result unpredictable, so
+the case carries `string/lone-surrogate`, an open tag.
+
+| table | stand on `string/lone-surrogate` | outcome | reason |
+|---|---|---|---|
+| `jsoncorpus.DefaultLexer` | `Refuses` | `Reject` | refuses this on purpose |
+| `encoding/json Valid`, from [Score a parser](../../getting-started/score-a-parser/) | `Accepts` | `Accept` | the grammar accepts it and no property this parser refuses is present |
+| a table that declares `Either` | `Either` | `Undecided` | declines to guarantee this |
+| a table that leaves the tag out | `Undeclared` | `Undecided` | has not ruled on this |
+
+`DefaultLexer` and `encoding/json` give opposite answers, and both conform. The case scores each against what it
+declares.
+
+### YAML: a merge key
+
+The case `shape/merge/a merge from an anchored mapping`, from the YAML compact corpus:
+
+```json
+{
+  "name": "shape/merge/a merge from an anchored mapping",
+  "src": "YmFzZTogJmIge2E6IDF9CmQ6CiAgPDw6ICpiCiAgYzogMgo=",
+  "wellFormed": true,
+  "tags": ["merge/key"],
+  "verdictAt": "construct"
+}
+```
+
+`src` is:
+
+```yaml
+base: &b {a: 1}
+d:
+  <<: *b
+  c: 2
+```
+
+YAML 1.1 reads `<<` as a merge key, so `d` holds `a: 1` and `c: 2`. YAML 1.2 dropped merge keys from the core
+schema, and many parsers still apply them. The question arises when the parser builds native values, so
+`merge/key` is placed at `Construct`. It is an open tag: no rule settles it.
+
+Each table below sets `Speaks: yamlbuild.Vocabulary()` and `Requires: yamlbuild.AllRules()`:
+
+| table | `At` | stand on `merge/key` | outcome | reason |
+|---|---|---|---|---|
+| applies merge keys | `Construct` | `Accepts` | `Accept` | the grammar accepts it and no property this parser refuses is present |
+| refuses merge keys | `Construct` | `Refuses` | `Reject` | refuses this on purpose |
+| does not guarantee either | `Construct` | `Either` | `Undecided` | declines to guarantee this |
+| no position | `Construct` | `Undeclared` | `Undecided` | has not ruled on this |
+| refuses merge keys, stops at composing | `Compose` | `Refuses` | `Accept` | the grammar accepts it and no property this parser refuses is present |
+| a parser only | `Parse` | `Undeclared` | `Accept` | the grammar accepts it and no property this parser refuses is present |
+
+The last two rows show the stage floor. `merge/key` arises at `Construct`, past where these two tables stop, so
+`Table.Expect` skips the tag and the grammar's verdict decides. A parser that never builds native values never
+meets the merge question, so its stand on `merge/key` does not matter.

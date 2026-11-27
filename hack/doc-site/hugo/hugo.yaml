@@ -140,6 +140,22 @@ params:
     json_jts_impl: 0
     json_jts_impl_accepted: 0
     json_constructs: 0
+    yaml_patches: 0
+    yaml_tags: 0
+    yaml_per_signature: 0
+    yaml_compact_cases: 0
+    yaml_compact_refused: 0
+    yaml_compact_meanings: 0
+    yaml_compact_meanings_split: 0
+    yaml_compact_cyclic: 0
+    yaml_buckets: 0
+    yaml_yts_accept: 0
+    yaml_yts_reject: 0
+    yaml_yts_silent: 0
+    yaml_yts_departures: 0
+    json_extended_cases: 0
+    yaml_extended_cases: 0
+    yaml_extended_size: ''
 
 # Menu configuration
 menu:
