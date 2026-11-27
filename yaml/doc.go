@@ -8,8 +8,10 @@
 // [Stream] checks a whole YAML stream and [FlowNode] checks a single flow node.
 // [NewRecognizer] returns a reusable oracle for a caller that checks documents in a loop.
 //
-// The YAML corpus and its generator are being moved into this package from github.com/go-openapi/go-yaml.
-// Until then, this package provides the oracle only.
+// The other YAML packages build on the oracle:
+//   - [github.com/go-openapi/conformance-suites/yaml/yamlgen] generates YAML documents whose meaning is known in advance;
+//   - [github.com/go-openapi/conformance-suites/yaml/yamlgen/yamlbuild] builds the corpus from them;
+//   - [github.com/go-openapi/conformance-suites/yaml/corpus] embeds the stored corpus (a module of its own).
 //
 // # Using it
 //
