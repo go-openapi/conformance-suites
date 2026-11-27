@@ -55,7 +55,7 @@ The header of the embedded JSON compact corpus:
 | `digest` | string | always | `sha256:` and the hex SHA-256 of the grammar file behind the verdicts. |
 | `generator` | string | always | The name and version of the generator that produced the documents: `jsoncorpus/1`. |
 | `seed` | integer | always | The seed given to the generator. |
-| `tier` | string | always | `compact` for the small corpus embedded in the module, `full` for the complete one. |
+| `tier` | string | always | `compact` for the small corpus embedded in the module, `extended` for the larger one with the same quota, `full` for the one that keeps every document. |
 | `cases` | integer | always | The number of case lines after the header. |
 | `vocabulary` | array of tag specs | always | Every tag used by at least one case, sorted by name. See below. |
 | `readings` | array of strings | optional | Every reading the corpus considered when it recorded meanings, sorted: `yaml-1.2-core`, `yaml-1.1`. |

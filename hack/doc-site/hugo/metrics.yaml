@@ -51,3 +51,13 @@ params:
         json_extended_cases: 11982
         yaml_extended_cases: 112578
         yaml_extended_size: "6.8 MB"
+        # YAML suite page, measured 2026-11-27 on the v0.0.4 compact corpus.
+        yaml_mutations: 10          # generic mutations in yamlbuild/mutate.go
+        yaml_rule_breaks: 4         # rule-breaking rewrites in yamlbuild/breaking.go and duplicates.go
+        yaml_features: 61           # len(header.features)
+        yaml_compact_opaque: 1596
+        yaml_compact_shapes: 131    # enumerated cases, names starting shape/
+        yaml_tags_reject: 11        # tags the spec settles as reject
+        yaml_tags_accept: 11        # tags the spec settles as accept
+        yaml_tags_open: 44
+

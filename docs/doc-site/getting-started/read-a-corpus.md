@@ -10,14 +10,32 @@ without the Go packages. [File format](../../reference/file-format/) lists every
 
 ## Get a corpus file
 
-The repository holds the compact corpus of each suite:
+Each release tag holds the compact corpus of each suite, at a fixed path in the repository:
 
 | suite | file |
 |---|---|
 | JSON | `json/testdata/json-compact.jsonl.gz` |
 | YAML | `yaml/corpus/testdata/yaml-compact.jsonl.gz` |
 
-Releases do not attach corpus files yet. To get the full JSON corpus, build it with Go:
+Download a file at a release tag, so your tests read the same cases until you choose to move:
+
+```sh
+tag={{% siteparam "conformancesuites.latestRelease" %}}
+base=https://raw.githubusercontent.com/go-openapi/conformance-suites/${tag}
+
+curl -sSLO "${base}/json/testdata/json-compact.jsonl.gz"
+curl -sSLO "${base}/yaml/corpus/testdata/yaml-compact.jsonl.gz"
+```
+
+The [releases page](https://github.com/go-openapi/conformance-suites/releases) lists the tags. The header records
+what built the file: `gunzip -c yaml-compact.jsonl.gz | head -1 | jq '{tier, cases, generator, digest}'`.
+
+{{% notice style="note" %}}
+Releases do not attach corpus files yet. The plan is for each release to attach the compact and extended corpora
+of both suites, with a checksum list. Until then, the tag is the way to pin a corpus.
+{{% /notice %}}
+
+To get the full JSON corpus, build it with Go:
 
 ```go
 f, err := os.Create("json-full.jsonl.gz")
@@ -31,10 +49,11 @@ return jsoncorpus.Full().Write(f)
 
 ## Choose a tier
 
-| tier | JSON cases | use it to |
-|---|---|---|
-| `compact` | {{% siteparam "metrics.json_compact_cases" %}} | run on every change: it keeps up to {{% siteparam "metrics.json_per_signature" %}} cases per coverage signature |
-| `full` | {{% siteparam "metrics.json_full_cases" %}} ({{% siteparam "metrics.json_full_size" %}}) | run before a release: it keeps every generated document |
+| tier | JSON cases | YAML cases | use it to | where to get it |
+|---|---|---|---|---|
+| `compact` | {{% siteparam "metrics.json_compact_cases" %}} | {{% siteparam "metrics.yaml_compact_cases" %}} | run on every change: it keeps up to {{% siteparam "metrics.json_per_signature" %}} cases per coverage signature | the repository, at a release tag |
+| `extended` | {{% siteparam "metrics.json_extended_cases" %}} | {{% siteparam "metrics.yaml_extended_cases" %}} | run before you release: five times the documents, with the same quota | planned as a release asset |
+| `full` | {{% siteparam "metrics.json_full_cases" %}} | built on demand | run on a schedule: it keeps every generated document | build it with Go, as above |
 
 The header's `tier` field says which one a file holds. [Coverage](../../concepts/coverage/) explains what the
 compact tier leaves out.

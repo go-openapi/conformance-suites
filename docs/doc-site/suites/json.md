@@ -113,5 +113,5 @@ differed from what its authors expected:
 - **Meanings.** A JSON case carries no `meaning`: the corpus says whether a parser should accept a document, not
   what value it should read.
 - **Features.** A JSON case carries no `features`, so a subset cannot be selected by construct.
-- **Other parsers.** The YAML suite is checked against three parsers in the `consensus` module. The JSON suite is
+- **Other parsers.** The YAML suite is checked against five parsers in the `consensus` module. The JSON suite is
   checked against JSONTestSuite only.

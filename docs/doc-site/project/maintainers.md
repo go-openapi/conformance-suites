@@ -1,6 +1,6 @@
 ---
 title: Maintainers
-weight: 30
+weight: 40
 description: |
   Package layout, where new code goes, and how a release is cut.
 ---

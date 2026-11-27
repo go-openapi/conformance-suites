@@ -156,6 +156,14 @@ params:
     json_extended_cases: 0
     yaml_extended_cases: 0
     yaml_extended_size: ''
+    yaml_mutations: 0
+    yaml_rule_breaks: 0
+    yaml_features: 0
+    yaml_compact_opaque: 0
+    yaml_compact_shapes: 0
+    yaml_tags_reject: 0
+    yaml_tags_accept: 0
+    yaml_tags_open: 0
 
 # Menu configuration
 menu:

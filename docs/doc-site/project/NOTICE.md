@@ -1,0 +1,106 @@
+---
+title: NOTICE
+weight: 30
+description: |
+  License notice
+---
+
+```
+Copyright 2025-2026 go-swagger maintainers
+
+// SPDX-FileCopyrightText: Copyright 2025-2026 go-swagger maintainers
+// SPDX-License-Identifier: Apache-2.0
+
+This software library, github.com/go-openapi/conformance-suites, includes software developed
+by the go-swagger and go-openapi maintainers ("go-swagger maintainers").
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this software except in compliance with the License.
+
+You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0.
+
+This software ships with copies of other software which license terms are recalled below.
+
+Third-party notices for github.com/go-openapi/conformance-suites
+============================================================
+
+github.com/yaml/yaml-grammar -- yaml/testdata/yaml-spec-1.2.json
+------------------------------------------------------------
+
+yaml/testdata/yaml-spec-1.2.json is copied unmodified from
+https://github.com/yaml/yaml-grammar/blob/68cba4e5c77f13b316da71b129da9b986ea80a55/yaml-spec-1.2.json
+(git blob 69cc3ee97ed22f97bb16b0dd76f8eff57742391c, identical on master as of 2026-11-22).
+The yaml package embeds it and compiles the YAML 1.2 recognizer from it.
+
+That repository states no license, and neither does https://github.com/yaml/yaml-spec.
+We have not been granted a license for this file. It is not covered by this project's
+Apache-2.0 license.
+
+github.com/yaml/yaml-test-suite -- internal/yamltestsuite/testdata/
+------------------------------------------------------------
+
+The conformance fixtures under internal/yamltestsuite/testdata are used unmodified from
+https://github.com/yaml/yaml-test-suite, under the MIT License. A copy of that
+license is provided verbatim below and vendored alongside the fixtures at
+internal/yamltestsuite/testdata/LICENSE.
+
+(internal/yamltestsuite/yaml.go is not part of the suite: it is this project's
+loader for the fixtures, and is covered by the root LICENSE.)
+
+MIT License
+
+Copyright (c) 2016-2020 Ingy döt Net
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+github.com/nst/JSONTestSuite -- internal/jsontestsuite/testdata/
+------------------------------------------------------------
+
+The conformance fixtures under internal/jsontestsuite/testdata/test_parsing are used unmodified from
+https://github.com/nst/JSONTestSuite at revision 1ef36fa, under the MIT License. A copy of that
+license is provided verbatim below and vendored alongside the fixtures at
+internal/jsontestsuite/testdata/LICENSE.
+
+(internal/jsontestsuite/json.go is not part of the suite: it is this project's
+loader for the fixtures, and is covered by the root LICENSE.)
+
+MIT License
+
+Copyright (c) 2016 Nicolas Seriot
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
