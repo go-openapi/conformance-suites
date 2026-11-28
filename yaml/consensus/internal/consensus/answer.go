@@ -73,8 +73,8 @@ type Answer struct {
 	RoundTrip *RoundTrip `json:"roundTrip,omitempty"`
 	// Message is what the source said when it refused or failed, trimmed to its first line.
 	Message string `json:"message,omitempty"`
-	// ElapsedMS is how long the source took, in milliseconds to the microsecond. A source run as a program counts
-	// its start-up, and one run in the runner's process does not.
+	// ElapsedMS is how long the source took, in milliseconds to the microsecond, measured in its driver. It counts
+	// a program the source starts for the document, and not the start of a process that answers a whole corpus.
 	ElapsedMS float64 `json:"elapsedMs"`
 }
 

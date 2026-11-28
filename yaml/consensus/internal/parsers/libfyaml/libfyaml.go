@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: Copyright 2025 go-swagger maintainers
 // SPDX-License-Identifier: Apache-2.0
 
-// Package libfyaml reads a document with libfyaml, through its Python binding and fy-tool.
+// Package libfyaml reads a document with libfyaml, through its Python binding and fy-tool, once per document or,
+// through [Loader], for a whole corpus.
 //
 // The public package github.com/go-openapi/conformance-suites/yaml/consensus/libfyaml documents the source and
 // re-exports what other modules use.

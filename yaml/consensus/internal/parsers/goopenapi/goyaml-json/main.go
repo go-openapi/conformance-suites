@@ -7,6 +7,9 @@
 //	{"verdict":"accept","docs":1,"json":["{\"a\":1}"]}
 //	{"verdict":"refuse","refusedBy":"parser","message":"[1:2] ..."}
 //
+// With -lines it reads one request per line, {"src":"<base64>"}, and writes one answer per line, until its input
+// ends, so one process answers a whole corpus. A panic on one document becomes an answer with verdict "error".
+//
 // It is a program of its own, built into the consensus image, so that the yaml/consensus module does not require
 // go-openapi/go-yaml: the parser under test changes far more often than the references it is compared with.
 //
@@ -16,9 +19,11 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"math/big"
@@ -42,6 +47,18 @@ type answer struct {
 }
 
 func main() {
+	lines := flag.Bool("lines", false, "read one JSON request per line and answer each on a line of its own")
+	flag.Parse()
+
+	if *lines {
+		if err := serve(os.Stdin, os.Stdout); err != nil {
+			fmt.Fprintf(os.Stderr, "goyaml-json: %v\n", err)
+			os.Exit(2)
+		}
+
+		return
+	}
+
 	src, err := io.ReadAll(os.Stdin)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "goyaml-json: %v\n", err)
@@ -56,8 +73,58 @@ func main() {
 	fmt.Fprintln(os.Stdout, string(out))
 }
 
+// maxLine bounds one request, as the runner bounds its own lines.
+const maxLine = 64 << 20
+
+// serve answers every request read from r, writing one answer per line to w, until r ends.
+func serve(r io.Reader, w io.Writer) error {
+	sc := bufio.NewScanner(r)
+	sc.Buffer(make([]byte, 0, 1<<16), maxLine)
+	out := bufio.NewWriter(w)
+	enc := json.NewEncoder(out)
+
+	for sc.Scan() {
+		var q struct {
+			Src []byte `json:"src"`
+		}
+		if err := json.Unmarshal(sc.Bytes(), &q); err != nil {
+			return fmt.Errorf("reading a request: %w", err)
+		}
+		if err := enc.Encode(readSafely(q.Src)); err != nil {
+			return err
+		}
+		if err := out.Flush(); err != nil {
+			return err
+		}
+	}
+
+	return sc.Err()
+}
+
+// readSafely is [read], with a panic turned into an answer with verdict "error".
+func readSafely(src []byte) (a answer) {
+	defer func() {
+		if r := recover(); r != nil {
+			// The parser may hold the state of the parse that panicked; the next stream gets a new one.
+			reuse = nil
+			a = answer{Verdict: "error", Message: firstLine(fmt.Errorf("panic: %v", r))}
+		}
+	}()
+
+	return read(src)
+}
+
+// reuse is the parser read uses for each stream, reset between streams: a new Parser allocates its arenas, about
+// 36 KB, which costs more than parsing most documents of a corpus. The program reads one stream at a time.
+var reuse *parser.Parser
+
 func read(src []byte) answer {
-	file, err := parser.ParseBytes(src)
+	if reuse == nil {
+		reuse = parser.New()
+	} else {
+		reuse.Reset()
+	}
+	file, err := reuse.Parse(src)
 	if err != nil {
 		// go-yaml's parser resolves aliases and checks keys as it reads, and those refusals are the composer's: an
 		// alias naming no anchor or standing inside its own, a key written twice.

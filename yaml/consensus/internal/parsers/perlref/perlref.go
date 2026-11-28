@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2025 go-swagger maintainers
 // SPDX-License-Identifier: Apache-2.0
 
-// Package perlref runs the YAML 1.2 reference parser and returns its event stream.
+// Package perlref runs the YAML 1.2 reference parser, once per document or, through [Parser], for a whole corpus.
 //
 // The public package github.com/go-openapi/conformance-suites/yaml/consensus/perlref documents the source and
 // re-exports what other modules use.

@@ -87,8 +87,17 @@ func failed(err error) consensus.Answer {
 	return consensus.Answer{Verdict: verdict, Message: consensus.FirstLine(err.Error())}
 }
 
+// libfyamlLoader is the drive process's one Python process, started on the first document.
+var libfyamlLoader = sync.OnceValue(func() *libfyaml.Loader { return libfyaml.New(libfyaml.Home()) })
+
+// goopenapiReader is the drive process's one goyaml-json process, started on the first document.
+var goopenapiReader = sync.OnceValue(func() *goopenapi.Reader { return goopenapi.New(goopenapi.Command()) })
+
+// perlrefParser is the drive process's one Perl process, started on the first document.
+var perlrefParser = sync.OnceValue(func() *perlref.Parser { return perlref.New(perlref.Home()) })
+
 func perlrefAnswer(ctx context.Context, src []byte) consensus.Answer {
-	events, ok, err := perlref.EventsContext(ctx, src)
+	events, ok, err := perlrefParser().Events(ctx, src)
 	if err != nil {
 		return failed(err)
 	}
@@ -122,7 +131,7 @@ func libfyamlAnswer(ctx context.Context, src []byte) consensus.Answer {
 		return a
 	}
 
-	docs, err := libfyaml.LoadContext(ctx, src, libfyaml.YAML12)
+	docs, err := libfyamlLoader().Load(ctx, src, string(libfyaml.YAML12))
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) || ctx.Err() != nil {
 			return failed(context.DeadlineExceeded)
@@ -196,7 +205,10 @@ func yamlv3Answer(_ context.Context, src []byte) consensus.Answer {
 }
 
 func goopenapiAnswer(ctx context.Context, src []byte) consensus.Answer {
-	got, err := goopenapi.Read(ctx, src)
+	if !goopenapi.Available() {
+		return failed(goopenapi.ErrNotInstalled)
+	}
+	got, err := goopenapiReader().Read(ctx, src)
 	if err != nil {
 		return failed(err)
 	}
