@@ -6,6 +6,8 @@ package main
 import (
 	"context"
 	"errors"
+	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -30,7 +32,7 @@ type source struct {
 	roundTrip bool
 	// procs is how many drivers of this source run side by side, each taking every procs-th case. Zero means one.
 	// The Perl reference parser takes about 97 ms of CPU per document, and YAMLStar starts its native command once
-	// per document; the other sources answer in a millisecond or two.
+	// per document; the other sources answer in a millisecond or two. See [sideBySide].
 	procs     int
 	available func() bool
 	version   func() string
@@ -40,7 +42,7 @@ type source struct {
 func allSources() []source {
 	return []source{
 		{
-			id: "perlref", what: "YAML 1.2 reference parser (Perl), yaml/yaml-reference-parser", events: true, procs: 4,
+			id: "perlref", what: "YAML 1.2 reference parser (Perl), yaml/yaml-reference-parser", events: true, procs: sideBySide(4),
 			available: perlref.Available, version: perlref.Commit, answer: perlrefAnswer,
 		},
 		{
@@ -53,7 +55,7 @@ func allSources() []source {
 			answer: libfyamlAnswer,
 		},
 		{
-			id: "yamlstar", what: "YAMLStar (Clojure), its own reference parser", events: true, values: true, procs: 2,
+			id: "yamlstar", what: "YAMLStar (Clojure), its own reference parser", events: true, values: true, procs: sideBySide(2),
 			available: yamlstar.Available, version: yamlstar.Version, answer: yamlstarAnswer,
 		},
 		{
@@ -65,6 +67,20 @@ func allSources() []source {
 			available: goopenapi.Available, version: goopenapi.Version, answer: goopenapiAnswer,
 		},
 	}
+}
+
+// localDrivers is how many drivers of a slow source run off CI, capped at the host's CPU count. A higher count
+// keeps every thread of an 8-core host busy for minutes.
+const localDrivers = 8
+
+// sideBySide returns how many drivers of a slow source to run: onCI when the CI variable is set, as on a GitHub
+// runner, whose 4 CPUs and 16 GB a larger count would only overload; else [localDrivers].
+func sideBySide(onCI int) int {
+	if os.Getenv("CI") != "" {
+		return onCI
+	}
+
+	return max(1, min(localDrivers, runtime.NumCPU()))
 }
 
 // bindingAvailable asks once whether libfyaml's Python binding can be run.

@@ -110,7 +110,7 @@ jobs:
       - name: Run the corpus
         run: |
           cp yaml/corpus/testdata/yaml-compact.jsonl.gz .
-          docker run --rm --user "$(id -u):$(id -g)" -v "${PWD}:/work" "${IMAGE}:${TAG}" \
+          docker run --rm -e CI --user "$(id -u):$(id -g)" -v "${PWD}:/work" "${IMAGE}:${TAG}" \
             run -cache /work/.consensus-cache -corpus-ref "${TAG}" /work/yaml-compact.jsonl.gz \
             > consensus-results.jsonl
           gzip -9 consensus-results.jsonl

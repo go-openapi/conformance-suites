@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -124,5 +125,17 @@ func TestSideBySideDriversAnswerEveryCase(t *testing.T) {
 	}
 	if stats.Asked != len(docs) || stats.Procs != 3 {
 		t.Errorf("stats: %+v", stats)
+	}
+}
+
+func TestSideBySideKeepsTheCICountOnCI(t *testing.T) {
+	t.Setenv("CI", "true")
+	if got := sideBySide(4); got != 4 {
+		t.Errorf("on CI: got %d drivers, want 4", got)
+	}
+
+	t.Setenv("CI", "")
+	if got, want := sideBySide(4), min(localDrivers, runtime.NumCPU()); got != want {
+		t.Errorf("locally: got %d drivers, want %d", got, want)
 	}
 }
