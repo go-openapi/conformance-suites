@@ -5,6 +5,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -25,8 +26,10 @@ import (
 type head struct {
 	Corpus  corpusInfo   `json:"corpus"`
 	Sources []sourceInfo `json:"sources"`
-	Started time.Time    `json:"started"`
-	Elapsed string       `json:"elapsed,omitempty"`
+	// Dropped lists the sources whose drivers crashed too often: the results hold none of their answers.
+	Dropped []dropped `json:"dropped,omitempty"`
+	Started time.Time `json:"started"`
+	Elapsed string    `json:"elapsed,omitempty"`
 }
 
 type corpusInfo struct {
@@ -42,12 +45,36 @@ type corpusInfo struct {
 }
 
 type sourceInfo struct {
-	ID        string `json:"id"`
-	What      string `json:"what"`
-	Version   string `json:"version"`
-	Events    bool   `json:"events,omitempty"`
-	Values    bool   `json:"values,omitempty"`
-	RoundTrip bool   `json:"roundTrip,omitempty"`
+	ID        string   `json:"id"`
+	What      string   `json:"what"`
+	Version   string   `json:"version"`
+	Events    bool     `json:"events,omitempty"`
+	Values    bool     `json:"values,omitempty"`
+	RoundTrip bool     `json:"roundTrip,omitempty"`
+	Run       runStats `json:"run"`
+}
+
+// runStats records what running one source cost: the cases its drivers answered, the cases the cache answered,
+// and the time spent.
+type runStats struct {
+	// Asked is how many cases the drivers answered; Cached is how many the cache answered instead.
+	Asked  int `json:"asked"`
+	Cached int `json:"cached"`
+	// Seconds adds up the time the drivers took per case, from reading a case to writing its answer. It leaves out
+	// starting the drivers and sending them the cases.
+	Seconds float64 `json:"seconds"`
+	// Wall is the time from the first case sent to the last answer read, across every driver of the source.
+	Wall string `json:"wall"`
+	// Procs is how many drivers ran side by side.
+	Procs    int `json:"procs"`
+	Crashes  int `json:"crashes,omitempty"`
+	Timeouts int `json:"timeouts,omitempty"`
+}
+
+// dropped is a source left out of the results, and why.
+type dropped struct {
+	ID     string `json:"id"`
+	Reason string `json:"reason"`
 }
 
 // record is one case of the corpus and every source's answer for it.
@@ -66,35 +93,41 @@ type record struct {
 
 type runOptions struct {
 	sources []source
-	workers int
 	timeout time.Duration
 	cache   string
 	// limit stops after the first limit cases, for a quick look; zero reads them all.
 	limit int
 	// corpusRef is the conformance-suites commit or tag the corpus file comes from, recorded in the results.
 	corpusRef string
+	// driver returns the command line and the environment of a driver for source s. Nil runs this executable's
+	// drive subcommand; a nil environment inherits the runner's.
+	driver func(s source) (argv, env []string)
 }
 
+// maxCrashes is how many times a source's drivers may crash before the run drops the source.
+const maxCrashes = 10
+
+// watchdogGrace is added to the timeout a driver enforces itself, before the runner kills it. A source run inside
+// the driver's process, such as yaml.v3, cannot be stopped from within.
+var watchdogGrace = 5 * time.Second
+
 // runCorpus runs every case of the corpus at path through every source and writes the results to w.
+//
+// The sources run one after another, each through its own driver processes (see [source.procs]), so a source that
+// panics or hangs costs its own answers and nothing else.
 func runCorpus(path string, opts runOptions, w io.Writer, progress io.Writer) error {
 	h, cases, err := readCorpus(path, opts.limit)
 	if err != nil {
 		return err
 	}
-
-	infos := make([]sourceInfo, len(opts.sources))
-	caches := make([]*cache, len(opts.sources))
-	for i, s := range opts.sources {
-		infos[i] = sourceInfo{
-			ID: s.id, What: s.what, Version: s.version(), Events: s.events, Values: s.values,
-			RoundTrip: s.roundTrip,
-		}
-		c, err := openCache(opts.cache, s.id, infos[i].Version)
+	if opts.driver == nil {
+		self, err := os.Executable()
 		if err != nil {
 			return err
 		}
-		defer c.close()
-		caches[i] = c
+		opts.driver = func(s source) ([]string, []string) {
+			return []string{self, "drive", "-timeout", opts.timeout.String(), s.id}, nil
+		}
 	}
 
 	started := time.Now()
@@ -108,41 +141,44 @@ func runCorpus(path string, opts runOptions, w io.Writer, progress io.Writer) er
 		}
 	}
 
-	type job struct{ c, s int }
-	jobs := make(chan job)
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	done := 0
-	for range max(opts.workers, 1) {
-		wg.Go(func() {
-			for j := range jobs {
-				rec := &records[j.c]
-				// An answer cached before the source checked round trips lacks one, and is asked again.
-				if a, ok := caches[j.s].get(rec.SHA); ok &&
-					(!opts.sources[j.s].roundTrip || a.Verdict != consensus.Accept || a.RoundTrip != nil) {
-					rec.Answers[j.s] = a
-				} else {
-					a := timed(opts.sources[j.s], rec.Src, opts.timeout)
-					rec.Answers[j.s] = a
-					caches[j.s].put(rec.SHA, a)
-				}
-
-				mu.Lock()
-				done++
-				if progress != nil && done%2000 == 0 {
-					fmt.Fprintf(progress, "consensus: %d of %d answers\n", done, len(records)*len(opts.sources))
-				}
-				mu.Unlock()
-			}
-		})
-	}
-	for c := range records {
-		for s := range opts.sources {
-			jobs <- job{c, s}
+	infos := make([]sourceInfo, 0, len(opts.sources))
+	var gone []dropped
+	keep := make([]bool, len(opts.sources))
+	for i, s := range opts.sources {
+		info := sourceInfo{
+			ID: s.id, What: s.what, Version: s.version(), Events: s.events, Values: s.values, RoundTrip: s.roundTrip,
 		}
+		c, err := openCache(opts.cache, s.id, info.Version)
+		if err != nil {
+			return err
+		}
+		stats, reason := runSource(s, i, records, c, opts)
+		c.close()
+		info.Run = stats
+		if progress != nil {
+			fmt.Fprintf(progress, "consensus: %s: %d asked, %d cached, %.1fs in the drivers, %s wall\n",
+				s.id, stats.Asked, stats.Cached, stats.Seconds, stats.Wall)
+		}
+		if reason != "" {
+			gone = append(gone, dropped{ID: s.id, Reason: reason})
+			if progress != nil {
+				fmt.Fprintf(progress, "consensus: %s dropped: %s\n", s.id, reason)
+			}
+
+			continue
+		}
+		keep[i] = true
+		infos = append(infos, info)
 	}
-	close(jobs)
-	wg.Wait()
+	for i := range records {
+		kept := records[i].Answers[:0]
+		for j, a := range records[i].Answers {
+			if keep[j] {
+				kept = append(kept, a)
+			}
+		}
+		records[i].Answers = kept
+	}
 
 	out := bufio.NewWriter(w)
 	enc := json.NewEncoder(out)
@@ -151,7 +187,7 @@ func runCorpus(path string, opts runOptions, w io.Writer, progress io.Writer) er
 			Grammar: h.Grammar, Digest: h.Digest, Generator: h.Generator, Tier: h.Tier, Cases: h.Cases,
 			Vocabulary: h.Vocabulary, Readings: h.Readings, Ref: opts.corpusRef,
 		},
-		Sources: infos, Started: started.UTC(), Elapsed: time.Since(started).Round(time.Second).String(),
+		Sources: infos, Dropped: gone, Started: started.UTC(), Elapsed: time.Since(started).Round(time.Second).String(),
 	}); err != nil {
 		return err
 	}
@@ -162,6 +198,78 @@ func runCorpus(path string, opts runOptions, w io.Writer, progress io.Writer) er
 	}
 
 	return out.Flush()
+}
+
+// runSource fills the answers of source s, at index si of each record, from the cache or from its drivers. It
+// returns what the run cost, and a reason when the source crashed too often to keep.
+//
+// Each of the source's drivers takes every n-th case, n being [source.procs]. A driver that crashes or times out
+// answers an error for that case, and starts again at its next case.
+func runSource(s source, si int, records []record, c *cache, opts runOptions) (runStats, string) {
+	var pending []int
+	stats := runStats{Procs: max(s.procs, 1)}
+	for i := range records {
+		rec := &records[i]
+		// An answer cached before the source checked round trips lacks one, and is asked again.
+		if a, ok := c.get(rec.SHA); ok && (!s.roundTrip || a.Verdict != consensus.Accept || a.RoundTrip != nil) {
+			rec.Answers[si] = a
+			stats.Cached++
+
+			continue
+		}
+		pending = append(pending, i)
+	}
+
+	argv, env := opts.driver(s)
+	var (
+		mu      sync.Mutex
+		wg      sync.WaitGroup
+		crashes int
+	)
+	start := time.Now()
+	for k := range stats.Procs {
+		wg.Go(func() {
+			p := newProcess(argv, env)
+			defer p.close()
+			for n := k; n < len(pending); n += stats.Procs {
+				mu.Lock()
+				stop := crashes >= maxCrashes
+				mu.Unlock()
+				if stop {
+					return
+				}
+
+				rec := &records[pending[n]]
+				r, err := p.ask(request{SHA: rec.SHA, Src: rec.Src}, opts.timeout+watchdogGrace)
+				a := r.Answer
+				mu.Lock()
+				switch {
+				case errors.Is(err, errTimedOut):
+					a = failed(context.DeadlineExceeded)
+					stats.Timeouts++
+				case err != nil:
+					a = consensus.Answer{Verdict: consensus.Error, Message: consensus.FirstLine(err.Error())}
+					crashes++
+					stats.Crashes++
+				default:
+					stats.Asked++
+					stats.Seconds += r.Seconds
+				}
+				mu.Unlock()
+				a.Source = s.id
+				rec.Answers[si] = a
+				c.put(rec.SHA, a)
+			}
+		})
+	}
+	wg.Wait()
+	stats.Wall = time.Since(start).Round(time.Millisecond).String()
+
+	if crashes >= maxCrashes {
+		return stats, fmt.Sprintf("its drivers crashed %d times", crashes)
+	}
+
+	return stats, ""
 }
 
 // readCorpus reads a corpus file, checks its format, and returns its header and its first limit cases, or all of

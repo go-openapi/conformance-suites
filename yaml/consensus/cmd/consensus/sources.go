@@ -28,6 +28,10 @@ type source struct {
 	events, values bool
 	// roundTrip says the source writes each value back as YAML and reads it again.
 	roundTrip bool
+	// procs is how many drivers of this source run side by side, each taking every procs-th case. Zero means one.
+	// The Perl reference parser takes about 97 ms of CPU per document, and YAMLStar starts its native command twice
+	// per document; the other sources answer in a millisecond or two.
+	procs     int
 	available func() bool
 	version   func() string
 	answer    func(ctx context.Context, src []byte) consensus.Answer
@@ -36,7 +40,7 @@ type source struct {
 func allSources() []source {
 	return []source{
 		{
-			id: "perlref", what: "YAML 1.2 reference parser (Perl), yaml/yaml-reference-parser", events: true,
+			id: "perlref", what: "YAML 1.2 reference parser (Perl), yaml/yaml-reference-parser", events: true, procs: 4,
 			available: perlref.Available, version: perlref.Commit, answer: perlrefAnswer,
 		},
 		{
@@ -49,7 +53,7 @@ func allSources() []source {
 			answer: libfyamlAnswer,
 		},
 		{
-			id: "yamlstar", what: "YAMLStar (Clojure), its own reference parser", events: true, values: true,
+			id: "yamlstar", what: "YAMLStar (Clojure), its own reference parser", events: true, values: true, procs: 2,
 			available: yamlstar.Available, version: yamlstar.Version, answer: yamlstarAnswer,
 		},
 		{

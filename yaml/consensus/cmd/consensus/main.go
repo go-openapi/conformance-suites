@@ -11,12 +11,16 @@
 // Usage:
 //
 //	consensus check
-//	consensus run [-sources perlref,libfyaml,...] [-j N] [-timeout 10s] [-cache DIR] [-corpus-ref REF] corpus.jsonl.gz > results.jsonl
+//	consensus run [-sources perlref,libfyaml,...] [-timeout 10s] [-cache DIR] [-corpus-ref REF] corpus.jsonl.gz > results.jsonl
 //	consensus report [-o DIR] [-stances DIR] results.jsonl
 //
 // check lists the sources and whether each can be run. run writes one line naming the corpus and the sources, then
 // one line per case with every source's answer. report reads those results and writes a static site: a summary, a
 // grid by tag, a grid by feature, a page per source, and a page per case some source reads otherwise.
+//
+// run runs the sources one after another, each in driver processes of its own: the drive subcommand, which run
+// starts and nobody else needs to. A parser that panics or hangs costs its own answers only. A source whose drivers
+// crash 10 times is dropped from the results, and the first line says why.
 //
 // The external sources are found as the adapters find them: REFPARSER_HOME, LIBFYAML_HOME, FY_TOOL, YAMLSTAR and
 // GOYAML_JSON, or the default locations and PATH. The consensus image sets all of them.
@@ -27,7 +31,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -41,6 +44,8 @@ func main() {
 
 	var err error
 	switch os.Args[1] {
+	case "drive":
+		err = driveCommand(os.Args[2:])
 	case "check":
 		err = check()
 	case "run":
@@ -64,7 +69,7 @@ func main() {
 func usage() {
 	fmt.Fprint(os.Stderr, `usage:
   consensus check
-  consensus run [-sources perlref,libfyaml,yamlstar,yaml.v3,go-yaml] [-j N] [-timeout 10s] [-cache DIR] corpus.jsonl.gz > results.jsonl
+  consensus run [-sources perlref,libfyaml,yamlstar,yaml.v3,go-yaml] [-timeout 10s] [-cache DIR] corpus.jsonl.gz > results.jsonl
   consensus report [-o DIR] [-stances DIR] results.jsonl
 `)
 }
@@ -88,7 +93,6 @@ func check() error {
 func runCommand(args []string) error {
 	fs := flag.NewFlagSet("run", flag.ContinueOnError)
 	names := fs.String("sources", "", "comma-separated source ids; empty runs every available source")
-	workers := fs.Int("j", runtime.NumCPU(), "how many answers to compute at once")
 	timeout := fs.Duration("timeout", 10*time.Second, "how long one source may take on one document")
 	cacheDir := fs.String("cache", "", "directory keeping each source's answers between runs")
 	limit := fs.Int("limit", 0, "stop after this many cases, for a quick look; 0 runs them all")
@@ -121,7 +125,7 @@ func runCommand(args []string) error {
 	}
 
 	return runCorpus(fs.Arg(0), runOptions{
-		sources: chosen, workers: *workers, timeout: *timeout, cache: *cacheDir, limit: *limit, corpusRef: *corpusRef,
+		sources: chosen, timeout: *timeout, cache: *cacheDir, limit: *limit, corpusRef: *corpusRef,
 	}, os.Stdout, os.Stderr)
 }
 
