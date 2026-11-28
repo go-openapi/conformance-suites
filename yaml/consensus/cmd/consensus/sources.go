@@ -10,12 +10,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-openapi/conformance-suites/yaml/consensus"
-	"github.com/go-openapi/conformance-suites/yaml/consensus/goopenapi"
-	"github.com/go-openapi/conformance-suites/yaml/consensus/goyaml"
-	"github.com/go-openapi/conformance-suites/yaml/consensus/libfyaml"
-	"github.com/go-openapi/conformance-suites/yaml/consensus/perlref"
-	"github.com/go-openapi/conformance-suites/yaml/consensus/yamlstar"
+	"github.com/go-openapi/conformance-suites/yaml/consensus/internal/consensus"
+	"github.com/go-openapi/conformance-suites/yaml/consensus/internal/parsers/goopenapi"
+	"github.com/go-openapi/conformance-suites/yaml/consensus/internal/parsers/libfyaml"
+	"github.com/go-openapi/conformance-suites/yaml/consensus/internal/parsers/perlref"
+	"github.com/go-openapi/conformance-suites/yaml/consensus/internal/parsers/yamlstar"
+	"github.com/go-openapi/conformance-suites/yaml/consensus/internal/parsers/yamlv3"
 )
 
 // source is one implementation the runner consults.
@@ -54,7 +54,7 @@ func allSources() []source {
 		},
 		{
 			id: "yaml.v3", what: "go.yaml.in/yaml/v3 (Go)", values: true, roundTrip: true,
-			available: func() bool { return true }, version: func() string { return goyaml.Version }, answer: yamlv3Answer,
+			available: func() bool { return true }, version: func() string { return yamlv3.Version }, answer: yamlv3Answer,
 		},
 		{
 			id: "go-yaml", what: "github.com/go-openapi/go-yaml (Go)", values: true, roundTrip: true,
@@ -171,15 +171,15 @@ func yamlstarAnswer(ctx context.Context, src []byte) consensus.Answer {
 }
 
 func yamlv3Answer(_ context.Context, src []byte) consensus.Answer {
-	docs, err := goyaml.Load(src)
+	docs, err := yamlv3.Load(src)
 	if err != nil {
 		msg := err.Error()
 
 		return consensus.Answer{Verdict: consensus.Refuse, RefusedBy: yamlv3Stage(msg), Message: consensus.FirstLine(msg)}
 	}
 
-	a := consensus.Answer{Verdict: consensus.Accept, Docs: len(docs), RoundTrip: goyaml.RoundTrip(src)}
-	rendered, err := goyaml.LoadJSON(src)
+	a := consensus.Answer{Verdict: consensus.Accept, Docs: len(docs), RoundTrip: yamlv3.RoundTrip(src)}
+	rendered, err := yamlv3.LoadJSON(src)
 	if err != nil {
 		// Read, and JSON has no spelling for a value: every document is left without one.
 		a.JSON = make([]string, len(docs))

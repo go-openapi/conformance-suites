@@ -11,7 +11,7 @@ import (
 
 	"github.com/go-openapi/conformance-suites/stance"
 	"github.com/go-openapi/conformance-suites/suite"
-	"github.com/go-openapi/conformance-suites/yaml/consensus"
+	"github.com/go-openapi/conformance-suites/yaml/consensus/internal/consensus"
 )
 
 // The verdict statuses that split "rejected valid" and "accepted invalid" by reason.

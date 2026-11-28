@@ -9,7 +9,7 @@ import (
 	"github.com/go-openapi/testify/v2/assert"
 	"github.com/go-openapi/testify/v2/require"
 
-	"github.com/go-openapi/conformance-suites/yaml/consensus"
+	"github.com/go-openapi/conformance-suites/yaml/consensus/internal/consensus"
 )
 
 // TestEqualValuesHaveOneSpelling holds CanonicalJSON to the spellings the sources write for one value.

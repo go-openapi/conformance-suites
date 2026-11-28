@@ -4,7 +4,7 @@ use (
 	.
 	./yaml/calibrate
 	./yaml/consensus
-	./yaml/consensus/docker/goyaml-json
+	./yaml/consensus/internal/parsers/goopenapi/goyaml-json
 	./yaml/corpus
 	./yaml/yamlgen
 )

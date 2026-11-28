@@ -4,9 +4,9 @@
 // Package goopenapi reads a document with github.com/go-openapi/go-yaml, the parser the consensus report scores, by
 // running the goyaml-json program.
 //
-// goyaml-json lives in its own module, yaml/consensus/docker/goyaml-json, so that this module does not require
-// go-openapi/go-yaml: the parser under test changes far more often than the references it is compared with, and a
-// requirement here would need a version bump on every change. The consensus image builds the program from a pinned
+// goyaml-json lives in its own module, under goyaml-json in this directory, so that the consensus module does not
+// require go-openapi/go-yaml: the parser under test changes far more often than the references it is compared with,
+// and a requirement would need a version bump on every change. The consensus image builds the program from a pinned
 // version, or from a local checkout.
 package goopenapi
 
@@ -23,7 +23,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/go-openapi/conformance-suites/yaml/consensus"
+	"github.com/go-openapi/conformance-suites/yaml/consensus/internal/consensus"
 )
 
 // ErrNotInstalled says the goyaml-json program could not be found.

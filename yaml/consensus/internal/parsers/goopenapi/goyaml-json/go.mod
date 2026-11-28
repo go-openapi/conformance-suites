@@ -1,4 +1,4 @@
-module github.com/go-openapi/conformance-suites/yaml/consensus/docker/goyaml-json
+module github.com/go-openapi/conformance-suites/yaml/consensus/internal/parsers/goopenapi/goyaml-json
 
 go 1.26.0
 

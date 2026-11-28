@@ -10,8 +10,8 @@ import (
 	"github.com/go-openapi/testify/v2/assert"
 	"github.com/go-openapi/testify/v2/require"
 
-	"github.com/go-openapi/conformance-suites/yaml/consensus/perlref"
-	"github.com/go-openapi/conformance-suites/yaml/consensus/yamlstar"
+	"github.com/go-openapi/conformance-suites/yaml/consensus/internal/parsers/perlref"
+	"github.com/go-openapi/conformance-suites/yaml/consensus/internal/parsers/yamlstar"
 )
 
 // TestTheEventsMatchTheReferenceParser holds the conversion from "yaml -D parse" to test.event against the Perl

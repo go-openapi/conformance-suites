@@ -4,12 +4,10 @@
 package main
 
 import (
-	"embed"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
-	"path"
 	"regexp"
 	"slices"
 	"strings"
@@ -18,12 +16,10 @@ import (
 
 	"github.com/go-openapi/conformance-suites/stance"
 	"github.com/go-openapi/conformance-suites/suite"
+	stancefiles "github.com/go-openapi/conformance-suites/yaml/consensus/internal/stances"
 )
 
-//go:embed stances/*.yaml
-var embeddedStances embed.FS
-
-// stanceFile is one parser's stance file, as written in stances/<id>.yaml.
+// stanceFile is one parser's stance file, as written in internal/stances/<id>.yaml.
 type stanceFile struct {
 	// Parser is the source id the file describes.
 	Parser string `yaml:"parser"`
@@ -144,10 +140,9 @@ var atOf = map[string]stance.Stage{
 // loadStances reads the stance file of each source from dir, or from the embedded files when dir is empty, and
 // builds each source's table from the corpus's rules.
 func loadStances(dir string, h head) ([]parserStance, error) {
-	var files fs.FS = embeddedStances
-	root := "stances"
+	var files fs.FS = stancefiles.Files
 	if dir != "" {
-		files, root = os.DirFS(dir), "."
+		files = os.DirFS(dir)
 	}
 
 	rules, vocabulary := rulesOf(h.Corpus.Vocabulary)
@@ -156,7 +151,7 @@ func loadStances(dir string, h head) ([]parserStance, error) {
 		ps := parserStance{Table: stance.Table{
 			Name: s.ID, At: atOf[s.ID], Requires: rules, Speaks: vocabulary, Stands: map[stance.Tag]stance.Stand{},
 		}}
-		raw, err := fs.ReadFile(files, path.Join(root, s.ID+".yaml"))
+		raw, err := fs.ReadFile(files, s.ID+".yaml")
 		switch {
 		case errors.Is(err, fs.ErrNotExist):
 			out[i] = ps

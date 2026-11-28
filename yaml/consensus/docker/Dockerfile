@@ -46,7 +46,7 @@ RUN cd yaml/consensus && GOWORK=off CGO_ENABLED=0 go build -trimpath -o /out/con
 
 # goyaml-json, built from the pinned go-openapi/go-yaml or from the goyaml context.
 COPY --from=goyaml / /src/go-yaml/
-RUN cd yaml/consensus/docker/goyaml-json \
+RUN cd yaml/consensus/internal/parsers/goopenapi/goyaml-json \
  && if [ -f /src/go-yaml/go.mod ]; then \
       GOWORK=off go mod edit -replace github.com/go-openapi/go-yaml=/src/go-yaml; \
       echo "go-openapi/go-yaml: local checkout $(cd /src/go-yaml && git rev-parse --short HEAD 2>/dev/null || echo 'of unknown revision')" > /out/goyaml-json.version; \

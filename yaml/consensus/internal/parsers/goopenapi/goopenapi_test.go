@@ -11,7 +11,7 @@ import (
 	"github.com/go-openapi/testify/v2/assert"
 	"github.com/go-openapi/testify/v2/require"
 
-	"github.com/go-openapi/conformance-suites/yaml/consensus/goopenapi"
+	"github.com/go-openapi/conformance-suites/yaml/consensus/internal/parsers/goopenapi"
 )
 
 // TestTwoLocalBuildsHaveTwoVersions holds Version to the program's code for a build from a local checkout, whose

@@ -18,7 +18,7 @@ import (
 	"time"
 
 	"github.com/go-openapi/conformance-suites/suite"
-	"github.com/go-openapi/conformance-suites/yaml/consensus"
+	"github.com/go-openapi/conformance-suites/yaml/consensus/internal/consensus"
 )
 
 // head is the first line of a results file: the corpus and the sources it was run through.

@@ -51,21 +51,7 @@
 // nothing and builds nothing, so it cannot make either mistake.
 package goyaml
 
-import (
-	"bytes"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"io"
-
-	yaml "go.yaml.in/yaml/v3"
-
-	"github.com/go-openapi/conformance-suites/yaml/consensus"
-)
-
-// Version names what is being consulted, so a corpus entry that rests on this
-// reading records which one gave it.
-const Version = "go.yaml.in/yaml/v3 v3.0.6"
+import "github.com/go-openapi/conformance-suites/yaml/consensus/internal/parsers/yamlv3"
 
 // Load reads src and returns what yaml.v3 makes of each document in it.
 //
@@ -75,26 +61,7 @@ const Version = "go.yaml.in/yaml/v3 v3.0.6"
 // "1.0: a" into a map JSON cannot name at all, where this library stringifies
 // the key to "1" and libfyaml stringifies it to "1.0". A JSON-only reading
 // would have reported that as an error and hidden the third answer.
-func Load(src []byte) ([]any, error) {
-	dec := yaml.NewDecoder(bytes.NewReader(src))
-
-	var out []any
-
-	for {
-		var v any
-
-		err := dec.Decode(&v)
-		if errors.Is(err, io.EOF) {
-			return out, nil
-		}
-
-		if err != nil {
-			return nil, fmt.Errorf("yaml.v3: %w", err)
-		}
-
-		out = append(out, v)
-	}
-}
+func Load(src []byte) ([]any, error) { return yamlv3.Load(src) }
 
 // LoadJSON is [Load] rendered as JSON, one string per document, which is what
 // makes it comparable with libfyaml.Load.
@@ -103,83 +70,7 @@ func Load(src []byte) ([]any, error) {
 // back: a non-string mapping key, a cycle, a NaN. That is an answer about the
 // document rather than a failure of this function, so it is a named error and
 // not a generic one.
-func LoadJSON(src []byte) ([]string, error) {
-	docs, err := Load(src)
-	if err != nil {
-		return nil, err
-	}
-
-	out := make([]string, 0, len(docs))
-
-	for _, v := range docs {
-		encoded, err := json.Marshal(v)
-		if err != nil {
-			return nil, fmt.Errorf("%w: %w", ErrNotJSON, err)
-		}
-
-		out = append(out, string(encoded))
-	}
-
-	return out, nil
-}
+func LoadJSON(src []byte) ([]string, error) { return yamlv3.LoadJSON(src) }
 
 // ErrNotJSON says a document was read and JSON cannot write what came back.
-var ErrNotJSON = errors.New("yaml.v3: read it, and JSON cannot write it")
-
-// RoundTrip writes each document [Load] read back as YAML with yaml.Marshal, reads that with yaml.Unmarshal, and
-// compares the two values with [consensus.SameValue]. It returns nil when src does not load.
-func RoundTrip(src []byte) *consensus.RoundTrip {
-	docs, err := Load(src)
-	if err != nil {
-		return nil
-	}
-
-	for i, v := range docs {
-		if consensus.HasCycle(v) {
-			return &consensus.RoundTrip{Result: consensus.Cyclic, Doc: i}
-		}
-		out, err := marshal(v)
-		if err != nil {
-			return &consensus.RoundTrip{Result: consensus.Unwritable, Doc: i, Message: consensus.FirstLine(err.Error())}
-		}
-		var again any
-		if err := yaml.Unmarshal(out, &again); err != nil {
-			return &consensus.RoundTrip{
-				Result: consensus.Unreadable, Doc: i, YAML: cut(out), Message: consensus.FirstLine(err.Error()),
-			}
-		}
-		if !consensus.SameValue(v, again) {
-			return &consensus.RoundTrip{Result: consensus.Different, Doc: i, YAML: cut(out), Again: render(again)}
-		}
-	}
-
-	return &consensus.RoundTrip{Result: consensus.Same}
-}
-
-// marshal is yaml.Marshal with its panics turned into errors: it panics on a value it has no encoding for.
-func marshal(v any) (out []byte, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("yaml.v3: Marshal panicked: %v", r)
-		}
-	}()
-
-	return yaml.Marshal(v)
-}
-
-func cut(out []byte) string {
-	if len(out) > consensus.MaxRoundTripYAML {
-		return string(out[:consensus.MaxRoundTripYAML]) + "\n..."
-	}
-
-	return string(out)
-}
-
-// render writes a value as JSON where it has a JSON form, and as Go syntax where it does not.
-func render(v any) string {
-	if encoded, err := json.Marshal(v); err == nil {
-		return string(encoded)
-	}
-
-	return fmt.Sprintf("%#v", v)
-}
+var ErrNotJSON = yamlv3.ErrNotJSON

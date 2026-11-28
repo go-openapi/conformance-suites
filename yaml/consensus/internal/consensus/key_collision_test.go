@@ -9,8 +9,8 @@ import (
 	"github.com/go-openapi/testify/v2/assert"
 	"github.com/go-openapi/testify/v2/require"
 
-	"github.com/go-openapi/conformance-suites/yaml/consensus/goyaml"
-	"github.com/go-openapi/conformance-suites/yaml/consensus/libfyaml"
+	"github.com/go-openapi/conformance-suites/yaml/consensus/internal/parsers/libfyaml"
+	"github.com/go-openapi/conformance-suites/yaml/consensus/internal/parsers/yamlv3"
 )
 
 // TestTheOtherSourcesOnACollidingKey is the corroboration, and it is split.
@@ -24,7 +24,7 @@ func TestTheOtherSourcesOnACollidingKey(t *testing.T) {
 	// merges the two the way this library used to. It keeps int and float
 	// apart -- see TestFixedTwoTypesAreTwoKeys -- and not int and string, so
 	// its rule is the rendered name rather than the type.
-	_, err := goyaml.Load([]byte(src))
+	_, err := yamlv3.Load([]byte(src))
 	require.Error(t, err, "yaml.v3 refuses it")
 	assert.Contains(t, err.Error(), `mapping key "1" already defined`)
 

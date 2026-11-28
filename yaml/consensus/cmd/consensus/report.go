@@ -20,7 +20,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/go-openapi/conformance-suites/suite"
-	"github.com/go-openapi/conformance-suites/yaml/consensus"
+	"github.com/go-openapi/conformance-suites/yaml/consensus/internal/consensus"
 )
 
 //go:embed templates/*.html

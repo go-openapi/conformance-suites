@@ -9,7 +9,7 @@ import (
 	"github.com/go-openapi/testify/v2/assert"
 	"github.com/go-openapi/testify/v2/require"
 
-	"github.com/go-openapi/conformance-suites/yaml/consensus/libfyaml"
+	"github.com/go-openapi/conformance-suites/yaml/consensus/internal/parsers/libfyaml"
 )
 
 func needs(t *testing.T) {

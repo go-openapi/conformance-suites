@@ -6,7 +6,7 @@ package main
 import (
 	"testing"
 
-	"github.com/go-openapi/conformance-suites/yaml/consensus"
+	"github.com/go-openapi/conformance-suites/yaml/consensus/internal/consensus"
 )
 
 func TestYAMLv3StageTellsTheDecoderFromTheParser(t *testing.T) {
