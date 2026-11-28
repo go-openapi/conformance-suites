@@ -11,7 +11,7 @@
 // Usage:
 //
 //	consensus check
-//	consensus run [-sources perlref,libfyaml,...] [-timeout 10s] [-cache DIR] [-corpus-ref REF] corpus.jsonl.gz > results.jsonl
+//	consensus run [-sources perlref,libfyaml,...] [-events] [-timeout 10s] [-cache DIR] [-corpus-ref REF] corpus.jsonl.gz > results.jsonl
 //	consensus report [-o DIR] [-stances DIR] results.jsonl
 //
 // check lists the sources and whether each can be run. run writes one line naming the corpus and the sources, then
@@ -69,7 +69,7 @@ func main() {
 func usage() {
 	fmt.Fprint(os.Stderr, `usage:
   consensus check
-  consensus run [-sources perlref,libfyaml,yamlstar,yaml.v3,go-yaml] [-timeout 10s] [-cache DIR] corpus.jsonl.gz > results.jsonl
+  consensus run [-sources perlref,libfyaml,yamlstar,yaml.v3,go-yaml] [-events] [-timeout 10s] [-cache DIR] corpus.jsonl.gz > results.jsonl
   consensus report [-o DIR] [-stances DIR] results.jsonl
 `)
 }
@@ -96,6 +96,7 @@ func runCommand(args []string) error {
 	timeout := fs.Duration("timeout", 10*time.Second, "how long one source may take on one document")
 	cacheDir := fs.String("cache", "", "directory keeping each source's answers between runs")
 	limit := fs.Int("limit", 0, "stop after this many cases, for a quick look; 0 runs them all")
+	events := fs.Bool("events", false, "keep each source's event stream in its answers; the report reads none")
 	corpusRef := fs.String("corpus-ref", "", "the conformance-suites commit or tag the corpus file comes from, for the report")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -125,7 +126,7 @@ func runCommand(args []string) error {
 	}
 
 	return runCorpus(fs.Arg(0), runOptions{
-		sources: chosen, timeout: *timeout, cache: *cacheDir, limit: *limit, corpusRef: *corpusRef,
+		sources: chosen, timeout: *timeout, events: *events, cache: *cacheDir, limit: *limit, corpusRef: *corpusRef,
 	}, os.Stdout, os.Stderr)
 }
 

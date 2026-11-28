@@ -125,36 +125,56 @@ func Events(ctx context.Context, src []byte) (events []string, ok bool, msg stri
 // sequence, so docs says how many documents the stream holds -- count them with [Events]. A value with no JSON form
 // comes back as YAMLStar spells it: ".inf" is "Infinity", which is not JSON.
 func Load(ctx context.Context, src []byte, docs int) ([]string, string, error) {
+	text, msg, err := Values(ctx, src)
+	if err != nil || msg != "" {
+		return nil, msg, err
+	}
+
+	each, err := Split(text, docs)
+
+	return each, "", err
+}
+
+// Values runs src through YAMLStar once and returns what it writes as JSON, or, when it refuses the document, what
+// it said. err is a failure to run at all.
+//
+// A refusal by the parser says "Error: parse: ..." or "Error: parser input ...", as [Events] does; any other
+// message is the loader's.
+func Values(ctx context.Context, src []byte) (text, msg string, err error) {
 	args := append(append([]string{}, referenceParser...), "-j")
 	out, errs, runErr := run(ctx, src, args...)
 	if runErr != nil {
 		if _, exited := errors.AsType[*exec.ExitError](runErr); !exited {
-			return nil, "", runErr
+			return "", "", runErr
 		}
 
-		return nil, strings.TrimSpace(errs), nil
+		return "", strings.TrimSpace(errs), nil
 	}
 
-	text := strings.TrimSpace(out)
+	return strings.TrimSpace(out), "", nil
+}
+
+// Split cuts the JSON [Values] returns into one value per document of a stream of docs documents.
+func Split(text string, docs int) ([]string, error) {
 	if docs <= 1 {
-		return []string{text}, "", nil
+		return []string{text}, nil
 	}
 
 	var each []json.RawMessage
 	if err := json.Unmarshal([]byte(text), &each); err != nil {
 		// A document whose value has no JSON form, as ".inf" written Infinity, spoils the whole array: no document of
 		// the stream can be told apart, so none has a value.
-		return make([]string, docs), "", nil //nolint:nilerr // the answer is "no JSON form", not a failure
+		return make([]string, docs), nil //nolint:nilerr // the answer is "no JSON form", not a failure
 	}
 	if len(each) != docs {
-		return nil, "", fmt.Errorf("yamlstar: %d documents and an array of %d", docs, len(each))
+		return nil, fmt.Errorf("yamlstar: %d documents and an array of %d", docs, len(each))
 	}
-	out2 := make([]string, len(each))
+	out := make([]string, len(each))
 	for i, v := range each {
-		out2[i] = string(v)
+		out[i] = string(v)
 	}
 
-	return out2, "", nil
+	return out, nil
 }
 
 func run(ctx context.Context, stdin []byte, args ...string) (string, string, error) {

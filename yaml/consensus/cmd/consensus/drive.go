@@ -17,6 +17,10 @@ import (
 	"github.com/go-openapi/conformance-suites/yaml/consensus/internal/jsonlines"
 )
 
+// collectEvents keeps each source's event stream in its answers. The report reads none, so drive leaves them out
+// unless told otherwise, and YAMLStar then runs its parser's event output only when it must count documents.
+var collectEvents bool
+
 // request is one case the runner sends a driver, as one JSON line on the driver's stdin.
 type request struct {
 	SHA string `json:"sha"`
@@ -34,6 +38,7 @@ type response struct {
 func driveCommand(args []string) error {
 	fs := flag.NewFlagSet("drive", flag.ContinueOnError)
 	timeout := fs.Duration("timeout", 10*time.Second, "how long the source may take on one document")
+	fs.BoolVar(&collectEvents, "events", false, "keep each source's event stream in its answers")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -69,6 +74,9 @@ func drive(s source, timeout time.Duration, r io.Reader, w io.Writer) error {
 
 		start := time.Now()
 		a := answerSafely(s, q.Src, timeout)
+		if !collectEvents {
+			a.Events = nil
+		}
 		if err := enc.Encode(response{SHA: q.SHA, Answer: a, Seconds: time.Since(start).Seconds()}); err != nil {
 			return err
 		}

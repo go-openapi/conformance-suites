@@ -18,51 +18,6 @@ import (
 	"github.com/go-openapi/conformance-suites/yaml/consensus/internal/consensus"
 )
 
-func TestEventStatusPlacesASourceAmongTheGroups(t *testing.T) {
-	writes := sourceInfo{ID: "a", Events: true}
-	group := func(answer string, ids ...string) consensus.Group {
-		return consensus.Group{Answer: answer, Sources: ids}
-	}
-
-	for _, tc := range []struct {
-		name   string
-		s      sourceInfo
-		a      consensus.Answer
-		groups []consensus.Group
-		want   string
-	}{
-		{"a source writing no events", sourceInfo{ID: "a"}, consensus.Answer{Source: "a"}, nil, statusNoAnswer},
-		{"an error", writes, consensus.Answer{Source: "a", Verdict: consensus.Error}, nil, statusError},
-		{"a rejection", writes, consensus.Answer{Source: "a"}, []consensus.Group{group("x", "b", "c")}, statusNoEvents},
-		{"alone to accept", writes, consensus.Answer{Source: "a"}, []consensus.Group{group("x", "a")}, statusOnly},
-		{"unanimous", writes, consensus.Answer{Source: "a"}, []consensus.Group{group("x", "a", "b")}, statusAgree},
-		{
-			"two against one", writes,
-			consensus.Answer{Source: "a"},
-			[]consensus.Group{group("x", "a", "b"), group("y", "c")},
-			statusMajority,
-		},
-		{
-			"one against two", writes,
-			consensus.Answer{Source: "a"},
-			[]consensus.Group{group("x", "b", "c"), group("y", "a")},
-			statusMinority,
-		},
-		{
-			"one each", writes,
-			consensus.Answer{Source: "a"},
-			[]consensus.Group{group("x", "a"), group("y", "b")},
-			statusNoMajor,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := eventStatus(tc.s, tc.a, tc.groups); got != tc.want {
-				t.Errorf("eventStatus = %q, want %q", got, tc.want)
-			}
-		})
-	}
-}
-
 func TestJudgeScoresValuesOnlyWhereTheCorpusStatesOne(t *testing.T) {
 	sources := []sourceInfo{{ID: "v", Values: true}}
 	accept := []consensus.Answer{{Source: "v", Verdict: consensus.Accept, JSON: []string{`{"a":1}`}}}

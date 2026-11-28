@@ -39,12 +39,6 @@ const (
 	statusNoValue   = "no value"
 	statusNotScored = "not scored"
 	statusNoAnswer  = "n/i"
-	statusAgree     = "agree"
-	statusOnly      = "only"
-	statusMajority  = "majority"
-	statusMinority  = "minority"
-	statusNoMajor   = "no majority"
-	statusNoEvents  = "no events"
 	statusRTSame    = "same"
 	statusRTDiff    = "different"
 	statusRTUnwrite = "unwritable"
@@ -321,12 +315,11 @@ func judge(rec record, sources []sourceInfo, stances []parserStance) judged {
 		Why: make([]*reason, len(rec.Answers)), ValueWhy: make([]*reason, len(rec.Answers)),
 	}
 
-	verdicts, events, values := map[string]string{}, map[string]string{}, map[string]string{}
+	verdicts, values := map[string]string{}, map[string]string{}
 	// plain holds each verdict without the stage that refused, which decides whether the verdict is split.
 	plain := map[string]string{}
 	j.Status["verdict"] = make([]string, len(rec.Answers))
 	j.Status["value"] = make([]string, len(rec.Answers))
-	j.Status["events"] = make([]string, len(rec.Answers))
 	j.Status["roundtrip"] = make([]string, len(rec.Answers))
 
 	meaning := ""
@@ -352,15 +345,10 @@ func judge(rec record, sources []sourceInfo, stances []parserStance) judged {
 
 		// The groups hold the verdict the verdict table scores: a refusal counts up to the stance's stage, and
 		// one past it, such as libfyaml's Python binding failing after fy-tool parsed the document, is an
-		// acceptance. The group names the stage that refused. The events come from the parse, and a refusal by
-		// the loader follows a clean one.
-		parsed := a.Verdict == consensus.Accept || a.RefusedBy == consensus.Loader
+		// acceptance. The group names the stage that refused.
 		verdicts[a.Source], plain[a.Source] = verdictGroup(a, ps.Table.At)
 		j.Status["verdict"][i], j.Why[i] = classifyVerdict(rec, a, ps)
 
-		if parsed && len(a.Events) > 0 {
-			events[a.Source] = strings.Join(a.Events, "\n")
-		}
 		if a.Verdict == consensus.Accept && a.JSON != nil {
 			values[a.Source] = strings.Join(a.JSON, "\n")
 		}
@@ -380,7 +368,7 @@ func judge(rec record, sources []sourceInfo, stances []parserStance) judged {
 		}
 	}
 
-	for q, answers := range map[string]map[string]string{"verdict": verdicts, "events": events, "value": values} {
+	for q, answers := range map[string]map[string]string{"verdict": verdicts, "value": values} {
 		groups := consensus.Groups(answers)
 		j.Groups[q] = groups
 		if len(groups) > 1 {
@@ -388,10 +376,6 @@ func judge(rec record, sources []sourceInfo, stances []parserStance) judged {
 		}
 	}
 	j.Split["verdict"] = len(consensus.Groups(plain)) > 1
-
-	for i, a := range rec.Answers {
-		j.Status["events"][i] = eventStatus(sources[i], a, j.Groups["events"])
-	}
 
 	return j
 }
@@ -409,43 +393,6 @@ func roundTripStatus(s sourceInfo, a consensus.Answer) string {
 		return statusNoAnswer
 	default:
 		return string(a.RoundTrip.Result)
-	}
-}
-
-// eventStatus places a source's events among the answer groups of the sources that wrote events.
-func eventStatus(s sourceInfo, a consensus.Answer, groups []consensus.Group) string {
-	if !s.Events {
-		return statusNoAnswer
-	}
-	own, largest, atLargest := 0, 0, 0
-	for _, g := range groups {
-		n := len(g.Sources)
-		if slices.Contains(g.Sources, a.Source) {
-			own = n
-		}
-		switch {
-		case n > largest:
-			largest, atLargest = n, 1
-		case n == largest:
-			atLargest++
-		}
-	}
-
-	switch {
-	case a.Verdict == consensus.Error:
-		return statusError
-	case own == 0:
-		return statusNoEvents
-	case len(groups) == 1 && own == 1:
-		return statusOnly
-	case len(groups) == 1:
-		return statusAgree
-	case atLargest > 1:
-		return statusNoMajor
-	case own == largest:
-		return statusMajority
-	default:
-		return statusMinority
 	}
 }
 
@@ -473,7 +420,7 @@ type summary struct {
 
 func summarize(cases []judged, n int) summary {
 	s := summary{Counts: map[string][]map[string]int{}, Splits: map[string]int{}}
-	for _, q := range []string{"verdict", "value", "events", "roundtrip"} {
+	for _, q := range []string{"verdict", "value", "roundtrip"} {
 		s.Counts[q] = make([]map[string]int, n)
 		for i := range n {
 			s.Counts[q][i] = map[string]int{}
@@ -634,10 +581,9 @@ func buildGrid(title, kind string, cases []judged, sources []sourceInfo, keys fu
 	return g
 }
 
-// quietValues are the value and events statuses that make no case worth a page.
+// quietValues are the value statuses that make no case worth a page.
 var quietValues = []string{
 	statusRTSame, statusRTCyclic, statusRefused, statusValRefTagged, statusValRefused, statusNoValue, statusNotScored, statusNoAnswer,
-	statusAgree, statusOnly, statusMajority, statusMinority, statusNoMajor, statusNoEvents,
 }
 
 // isDiff says whether a status is a difference from the corpus that nothing explains, or that an open tag may.

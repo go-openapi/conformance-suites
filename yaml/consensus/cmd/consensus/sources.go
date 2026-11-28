@@ -29,7 +29,7 @@ type source struct {
 	// roundTrip says the source writes each value back as YAML and reads it again.
 	roundTrip bool
 	// procs is how many drivers of this source run side by side, each taking every procs-th case. Zero means one.
-	// The Perl reference parser takes about 97 ms of CPU per document, and YAMLStar starts its native command twice
+	// The Perl reference parser takes about 97 ms of CPU per document, and YAMLStar starts its native command once
 	// per document; the other sources answer in a millisecond or two.
 	procs     int
 	available func() bool
@@ -156,7 +156,49 @@ func libfyamlAnswer(ctx context.Context, src []byte) consensus.Answer {
 	return a
 }
 
+// yamlstarAnswer runs YAMLStar's command once per document, with -j, and a second time with -D parse only to count
+// the documents of an answer written as a JSON array, which one document holding a sequence also is. With
+// collectEvents, it runs -D parse on every document, for the events.
 func yamlstarAnswer(ctx context.Context, src []byte) consensus.Answer {
+	if collectEvents {
+		return yamlstarAnswerWithEvents(ctx, src)
+	}
+
+	text, msg, err := yamlstar.Values(ctx, src)
+	switch {
+	case err != nil:
+		return failed(err)
+	case msg != "":
+		stage := consensus.Loader
+		if strings.HasPrefix(msg, "Error: parse") {
+			stage = consensus.Parser
+		}
+
+		return consensus.Answer{Verdict: consensus.Refuse, RefusedBy: stage, Message: consensus.FirstLine(msg)}
+	}
+
+	a := consensus.Answer{Verdict: consensus.Accept, Docs: 1}
+	if strings.HasPrefix(text, "[") {
+		events, ok, msg, err := yamlstar.Events(ctx, src)
+		switch {
+		case err != nil:
+			return failed(err)
+		case !ok:
+			return consensus.Answer{Verdict: consensus.Refuse, RefusedBy: consensus.Parser, Message: consensus.FirstLine(msg)}
+		}
+		a.Docs = countDocs(events)
+	}
+
+	docs, err := yamlstar.Split(text, a.Docs)
+	if err != nil {
+		return failed(err)
+	}
+	a.JSON = canonical(docs)
+
+	return a
+}
+
+func yamlstarAnswerWithEvents(ctx context.Context, src []byte) consensus.Answer {
 	events, ok, msg, err := yamlstar.Events(ctx, src)
 	if err != nil {
 		return failed(err)

@@ -99,6 +99,8 @@ type runOptions struct {
 	limit int
 	// corpusRef is the conformance-suites commit or tag the corpus file comes from, recorded in the results.
 	corpusRef string
+	// events keeps each source's event stream in its answers; the report reads none.
+	events bool
 	// driver returns the command line and the environment of a driver for source s. Nil runs this executable's
 	// drive subcommand; a nil environment inherits the runner's.
 	driver func(s source) (argv, env []string)
@@ -126,7 +128,12 @@ func runCorpus(path string, opts runOptions, w io.Writer, progress io.Writer) er
 			return err
 		}
 		opts.driver = func(s source) ([]string, []string) {
-			return []string{self, "drive", "-timeout", opts.timeout.String(), s.id}, nil
+			argv := []string{self, "drive", "-timeout", opts.timeout.String()}
+			if opts.events {
+				argv = append(argv, "-events")
+			}
+
+			return append(argv, s.id), nil
 		}
 	}
 
