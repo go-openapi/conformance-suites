@@ -71,6 +71,36 @@ type runStats struct {
 	Timeouts int `json:"timeouts,omitempty"`
 }
 
+// Summary returns the run's cost as the report shows it, such as "24.6 s for 28279 documents, 1m2s wall on 4
+// drivers". The time adds up each document's, so it does not depend on how many drivers ran. A source the cache
+// answered in full shows "every document from the cache".
+func (r runStats) Summary() string {
+	if r.Asked == 0 {
+		if r.Cached == 0 {
+			return "not recorded"
+		}
+
+		return "every document from the cache"
+	}
+
+	drivers := "1 driver"
+	if r.Procs > 1 {
+		drivers = fmt.Sprintf("%d drivers", r.Procs)
+	}
+	line := fmt.Sprintf("%.1f s for %d documents, %s wall on %s", r.Seconds, r.Asked, r.Wall, drivers)
+	if r.Cached > 0 {
+		line += fmt.Sprintf("; %d more from the cache", r.Cached)
+	}
+	if r.Crashes > 0 {
+		line += fmt.Sprintf("; %d crashes", r.Crashes)
+	}
+	if r.Timeouts > 0 {
+		line += fmt.Sprintf("; %d timeouts", r.Timeouts)
+	}
+
+	return line
+}
+
 // dropped is a source left out of the results, and why.
 type dropped struct {
 	ID     string `json:"id"`

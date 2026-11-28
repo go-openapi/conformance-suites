@@ -84,6 +84,9 @@ type column struct {
 type corpusStats struct {
 	Documents, Valid, Invalid, WithValue, Tagged int
 	Bytes                                        int64
+	// Seconds adds up, per source, the time each answer took. A cached answer keeps the time of the run that asked
+	// it, so the total covers the whole corpus however much of it the cache answered.
+	Seconds []float64
 }
 
 func countCorpus(cases []record) corpusStats {
@@ -101,6 +104,12 @@ func countCorpus(cases []record) corpusStats {
 		}
 		if len(c.Tags) > 0 {
 			st.Tagged++
+		}
+		for i, a := range c.Answers {
+			for len(st.Seconds) <= i {
+				st.Seconds = append(st.Seconds, 0)
+			}
+			st.Seconds[i] += a.ElapsedMS / 1000
 		}
 	}
 
@@ -674,6 +683,13 @@ func writeReport(results, dir, stanceDir string, warn io.Writer) error {
 		"lines":    func(s []string) string { return strings.Join(s, "\n") },
 		"doc":      document,
 		"size":     size,
+		"seconds": func(st corpusStats, i int) string {
+			if i >= len(st.Seconds) {
+				return "none"
+			}
+
+			return fmt.Sprintf("%.1f s", st.Seconds[i])
+		},
 		"rows": func(v view, cases []judged, truncated int) view {
 			v.Cases, v.Truncated = cases, truncated
 

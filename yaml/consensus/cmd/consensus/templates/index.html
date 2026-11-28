@@ -24,10 +24,19 @@ Hover over a column heading to see what it counts.
 
 <h2>Tested parsers</h2>
 <table>
-<tr><th class="name">id</th><th class="name">implementation</th><th class="name">version</th></tr>
-{{range .Head.Sources}}<tr><td class="name"><a href="source/{{pagename .ID}}.html">{{.ID}}</a></td><td class="name">{{.What}}</td><td class="name">{{.Version}}</td></tr>
+<tr><th class="name">id</th><th class="name">implementation</th><th class="name">version</th><th class="name">time over the corpus</th><th class="name">this run</th></tr>
+{{range $i, $s := .Head.Sources}}<tr><td class="name"><a href="source/{{pagename $s.ID}}.html">{{$s.ID}}</a></td><td class="name">{{$s.What}}</td><td class="name">{{$s.Version}}</td><td>{{seconds $.Stats $i}}</td><td class="name">{{$s.Run.Summary}}</td></tr>
 {{end}}
 </table>
+{{with .Head.Dropped}}<p>The run dropped these parsers after their drivers crashed too often; the report holds none of their answers:</p>
+<ul>{{range .}}<li>{{.ID}}: {{.Reason}}</li>{{end}}</ul>
+{{end}}
+<p>The time over the corpus adds up how long each parser's driver took on each document, from reading it to writing
+the answer, and leaves out starting the driver. A document the cache answered counts the time of the run that first
+asked it. The time depends on the language of the driver and on the work it does beyond parsing, such as writing JSON
+and checking the round trip, so use it to compare runs of one parser more than to compare parsers. "This run" gives
+what the run that wrote these results cost: the documents it asked, and the wall time with the drivers working side
+by side.</p>
 
 <p>Each parser has a stance file, which records its positions on features and on known areas of divergence.
 The columns of the tables below use these words:</p>

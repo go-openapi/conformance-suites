@@ -351,3 +351,32 @@ func withTrip(a consensus.Answer, result consensus.RoundTripResult) consensus.An
 
 	return a
 }
+
+func TestRunSummaryShowsTimeDriversAndCache(t *testing.T) {
+	for _, tc := range []struct {
+		run  runStats
+		want string
+	}{
+		{runStats{}, "not recorded"},
+		{runStats{Cached: 10}, "every document from the cache"},
+		{runStats{Asked: 100, Seconds: 2.04, Wall: "2.1s", Procs: 1}, "2.0 s for 100 documents, 2.1s wall on 1 driver"},
+		{
+			runStats{Asked: 90, Cached: 10, Seconds: 9, Wall: "3s", Procs: 4, Crashes: 1, Timeouts: 2},
+			"9.0 s for 90 documents, 3s wall on 4 drivers; 10 more from the cache; 1 crashes; 2 timeouts",
+		},
+	} {
+		if got := tc.run.Summary(); got != tc.want {
+			t.Errorf("%+v: got %q, want %q", tc.run, got, tc.want)
+		}
+	}
+}
+
+func TestCountCorpusAddsUpEachSourcesTime(t *testing.T) {
+	st := countCorpus([]record{
+		{Answers: []consensus.Answer{{ElapsedMS: 1500}, {ElapsedMS: 2}}},
+		{Answers: []consensus.Answer{{ElapsedMS: 500}, {ElapsedMS: 3}}},
+	})
+	if len(st.Seconds) != 2 || st.Seconds[0] != 2 || st.Seconds[1] != 0.005 {
+		t.Errorf("got %v, want [2 0.005]", st.Seconds)
+	}
+}
